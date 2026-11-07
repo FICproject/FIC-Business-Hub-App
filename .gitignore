@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Android build outputs & temporary files
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/.idea/
+apps/mobile/android/app/.cxx/
+*.apk
+*.aab
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary images
+emulator_*.png
+physical_*.png
+reg_*.png

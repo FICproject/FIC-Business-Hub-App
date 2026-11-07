@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "141385009508",
+    "project_id": "fic-business-hub",
+    "storage_bucket": "fic-business-hub.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:141385009508:android:0da73580461f020c309271",
+        "android_client_info": {
+          "package_name": "com.ficbusinesshubmobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBXGtm9FUjpMx4PpS0CENgZ1ATAYPHgUo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

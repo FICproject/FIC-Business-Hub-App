@@ -29,18 +29,24 @@ export interface FundingRequestRecord {
   id: string;
   trackingNumber: string;
   businessName: string;
+  businessType?: string;
   category: string;
   subcategory: string;
   sector: string;
-  fundingPurpose: string;
-  fundingType: 'Equity' | 'Debt' | 'Grant' | 'Other';
+  country?: string;
+  state?: string;
+  cityDistrict?: string;
+  pincode?: string;
+  businessLocation: string;
+  stage: string;
   requiredAmount: string;
-  stage: 'Idea' | 'Startup' | 'Growth' | 'Expansion';
-  description: string;
+  fundingPurpose: string[] | string;
+  fundingUtilization?: string;
   currentRevenue?: string;
+  description: string;
+  fundingType: string;
   equityOffered?: string;
   expectedTimeline: string;
-  businessLocation: string;
   pitchDeck?: AttachedPitchDeck | null;
   additionalInfo?: string;
   status: 'Sent' | 'Under Review' | 'Matched';
@@ -72,6 +78,18 @@ export interface InvestorInterestRecord {
   userName?: string;
 }
 
+const BUSINESS_TYPE_OPTIONS = [
+  'Private Limited (Pvt Ltd)',
+  'Limited Liability Partnership (LLP)',
+  'Sole Proprietorship',
+  'Partnership Firm',
+  'One Person Company (OPC)',
+  'Public Limited',
+  'Individual / Freelancer',
+  'Trust / Society / NGO',
+  'Other',
+];
+
 const SECTOR_OPTIONS = [
   'Manufacturing',
   'Technology',
@@ -82,19 +100,87 @@ const SECTOR_OPTIONS = [
   'Energy & Utilities',
   'Retail & E-commerce',
   'Creative Media',
+  'Real Estate & Infrastructure',
+  'Finance & FinTech',
+  'Logistics & Supply Chain',
+  'Other',
 ];
 
-const FUNDING_PURPOSES = [
-  'Working Capital & Cash Flow',
-  'Machinery & Plant Expansion',
-  'Technology R&D & Product Launch',
-  'Market Expansion & Channel Scaling',
-  'Refinancing & Debt Restructuring',
+const COUNTRY_OPTIONS = [
+  'India',
+  'United States',
+  'United Arab Emirates',
+  'Singapore',
+  'United Kingdom',
+  'Other Country',
 ];
 
-const FUNDING_TYPES = ['Equity', 'Debt', 'Grant', 'Other'] as const;
-const STAGES = ['Idea', 'Startup', 'Growth', 'Expansion'] as const;
-const TIMELINES = ['Immediate (< 30 days)', '1 - 3 Months', '3 - 6 Months', 'Flexible / Strategic'];
+const INDIAN_STATES = [
+  'Tamil Nadu',
+  'Maharashtra',
+  'Karnataka',
+  'Delhi NCR',
+  'Telangana',
+  'Gujarat',
+  'Uttar Pradesh',
+  'Kerala',
+  'Andhra Pradesh',
+  'West Bengal',
+  'Rajasthan',
+  'Madhya Pradesh',
+  'Punjab',
+  'Haryana',
+  'Bihar',
+  'Odisha',
+  'Other State / UT',
+];
+
+const BUSINESS_STAGE_OPTIONS = [
+  'Idea / Pre-Revenue',
+  'Early Stage / Prototype',
+  'Early Traction / Seed',
+  'Growth Stage / Scaling',
+  'Expansion / Established',
+  'Mature / Profitable',
+];
+
+const FUNDING_PURPOSE_OPTIONS = [
+  'Business Expansion',
+  'Working Capital',
+  'Machinery / Equipment Purchase',
+  'Technology / Product Development',
+  'Marketing & Sales',
+  'New Branch / Location',
+  'Infrastructure Development',
+  'Other',
+];
+
+const ANNUAL_REVENUE_OPTIONS = [
+  'Pre-Revenue / Nil',
+  'Less than ₹25 Lakhs',
+  '₹25 Lakhs - ₹1 Crore',
+  '₹1 Crore - ₹5 Crores',
+  '₹5 Crores - ₹25 Crores',
+  '₹25 Crores - ₹100 Crores',
+  'More than ₹100 Crores',
+];
+
+const FUNDING_TYPE_OPTIONS = [
+  'Equity',
+  'Debt / Loan',
+  'Grant',
+  'Convertible Note',
+  'Other',
+];
+
+const TIMELINE_OPTIONS = [
+  'Immediate (< 1 Month)',
+  '1 - 3 Months',
+  '3 - 6 Months',
+  '6 - 12 Months',
+  'Flexible / Open',
+];
+
 const INVESTOR_TYPES = ['Individual Angel', 'Venture Fund', 'Corporate Investor', 'Family Office', 'Syndicate / HNI'];
 const RISK_PREFERENCES = ['Conservative', 'Moderate', 'Aggressive'] as const;
 const DURATIONS = ['1 - 2 Years', '3 - 5 Years', '5+ Years (Long Term)'];
@@ -134,30 +220,106 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
     (user?.subcategory || (user as any)?.subCategory)?.trim() || 'Not Available';
 
   // -------------------------------------------------------------
-  // FUNDING FORM STATE
+  // FUNDING FORM STATE (Section A: Business, Section B: Funding)
   // -------------------------------------------------------------
+  // Section A – Business Information
   const [fBusinessName, setFBusinessName] = useState('');
-  const [fSector, setFSector] = useState('Manufacturing');
-  const [fPurpose, setFPurpose] = useState('Working Capital & Cash Flow');
-  const [fFundingType, setFFundingType] = useState<'Equity' | 'Debt' | 'Grant' | 'Other'>('Equity');
+  const [fBusinessType, setFBusinessType] = useState('Private Limited (Pvt Ltd)');
+  const [fSector, setFSector] = useState('Technology');
+  const [fCountry, setFCountry] = useState('India');
+  const [fState, setFState] = useState(user?.stateRegion || 'Tamil Nadu');
+  const [fCityDistrict, setFCityDistrict] = useState(user?.district || user?.city || '');
+  const [fPincode, setFPincode] = useState(user?.pincode || '');
+  const [fStage, setFStage] = useState('Growth Stage / Scaling');
+
+  // Section B – Funding Requirement
   const [fRequiredAmount, setFRequiredAmount] = useState('');
-  const [fStage, setFStage] = useState<'Idea' | 'Startup' | 'Growth' | 'Expansion'>('Growth');
+  const [fPurposes, setFPurposes] = useState<string[]>(['Business Expansion', 'Working Capital']);
+  const [fUtilization, setFUtilization] = useState('');
+  const [fRevenue, setFRevenue] = useState('₹25 Lakhs - ₹1 Crore');
   const [fDescription, setFDescription] = useState('');
-  const [fCurrentRevenue, setFCurrentRevenue] = useState('');
-  const [fEquityOffered, setFEquityOffered] = useState('');
+  const [fFundingType, setFFundingType] = useState('Equity');
+  const [fEquityOffered, setFEquityOffered] = useState('10');
   const [fTimeline, setFTimeline] = useState('1 - 3 Months');
-  const [fLocation, setFLocation] = useState('');
   const [fPitchDeck, setFPitchDeck] = useState<AttachedPitchDeck | null>(null);
   const [fAdditionalInfo, setFAdditionalInfo] = useState('');
 
+  // Dropdown Picker Modal
+  const [pickerModal, setPickerModal] = useState<{
+    visible: boolean;
+    title: string;
+    options: string[];
+    selectedValue?: string;
+    onSelect: (val: string) => void;
+  }>({
+    visible: false,
+    title: '',
+    options: [],
+    selectedValue: '',
+    onSelect: () => {},
+  });
+
+  const openDropdownPicker = (
+    title: string,
+    options: string[],
+    selectedValue: string,
+    onSelect: (val: string) => void
+  ) => {
+    setPickerModal({
+      visible: true,
+      title,
+      options,
+      selectedValue,
+      onSelect: (val) => {
+        onSelect(val);
+        setPickerModal((prev) => ({ ...prev, visible: false }));
+      },
+    });
+  };
+
+  const formatINR = (val: string) => {
+    const digits = val.replace(/[^0-9]/g, '');
+    if (!digits) return '';
+    const num = parseInt(digits, 10);
+    if (isNaN(num)) return '';
+    return '₹ ' + num.toLocaleString('en-IN');
+  };
+
+  const handleAmountChange = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '');
+    if (!digits) {
+      setFRequiredAmount('');
+      return;
+    }
+    setFRequiredAmount(formatINR(digits));
+    if (errFRequiredAmount) setErrFRequiredAmount(null);
+  };
+
+  const toggleFundingPurpose = (item: string) => {
+    setFPurposes((prev) => {
+      const exists = prev.includes(item);
+      const updated = exists ? prev.filter((p) => p !== item) : [...prev, item];
+      if (updated.length > 0 && errFPurposes) {
+        setErrFPurposes(null);
+      }
+      return updated;
+    });
+  };
+
   // Inline Validation Errors - Funding
   const [errFBusinessName, setErrFBusinessName] = useState<string | null>(null);
+  const [errFBusinessType, setErrFBusinessType] = useState<string | null>(null);
   const [errFSector, setErrFSector] = useState<string | null>(null);
-  const [errFPurpose, setErrFPurpose] = useState<string | null>(null);
+  const [errFCountry, setErrFCountry] = useState<string | null>(null);
+  const [errFState, setErrFState] = useState<string | null>(null);
+  const [errFCityDistrict, setErrFCityDistrict] = useState<string | null>(null);
+  const [errFPincode, setErrFPincode] = useState<string | null>(null);
+  const [errFStage, setErrFStage] = useState<string | null>(null);
   const [errFRequiredAmount, setErrFRequiredAmount] = useState<string | null>(null);
+  const [errFPurposes, setErrFPurposes] = useState<string | null>(null);
+  const [errFUtilization, setErrFUtilization] = useState<string | null>(null);
   const [errFDescription, setErrFDescription] = useState<string | null>(null);
   const [errFEquityOffered, setErrFEquityOffered] = useState<string | null>(null);
-  const [errFLocation, setErrFLocation] = useState<string | null>(null);
 
   // -------------------------------------------------------------
   // INVEST FORM STATE
@@ -225,48 +387,91 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
   const handleSubmitFunding = () => {
     let isValid = true;
 
-    // Reset errors
+    // Reset inline error states
     setErrFBusinessName(null);
+    setErrFBusinessType(null);
     setErrFSector(null);
-    setErrFPurpose(null);
+    setErrFCountry(null);
+    setErrFState(null);
+    setErrFCityDistrict(null);
+    setErrFPincode(null);
+    setErrFStage(null);
     setErrFRequiredAmount(null);
+    setErrFPurposes(null);
+    setErrFUtilization(null);
     setErrFDescription(null);
     setErrFEquityOffered(null);
-    setErrFLocation(null);
 
-    if (!fBusinessName.trim()) {
-      setErrFBusinessName('Business or Project Name is required.');
+    // Section A Validations
+    if (!fBusinessName.trim() || fBusinessName.trim().length < 2) {
+      setErrFBusinessName('Business / Company Name is required (minimum 2 characters).');
+      isValid = false;
+    }
+
+    if (!fBusinessType.trim()) {
+      setErrFBusinessType('Please select a Business Type.');
       isValid = false;
     }
 
     if (!fSector.trim()) {
-      setErrFSector('Industry / Sector is required.');
+      setErrFSector('Please select an Industry / Business Sector.');
       isValid = false;
     }
 
-    if (!fPurpose.trim()) {
-      setErrFPurpose('Funding purpose is required.');
+    if (!fCountry.trim()) {
+      setErrFCountry('Country is required.');
       isValid = false;
     }
 
-    if (!fRequiredAmount.trim()) {
-      setErrFRequiredAmount('Required funding amount (₹) is required.');
+    if (!fState.trim()) {
+      setErrFState('State / Region is required.');
       isValid = false;
     }
 
-    if (!fDescription.trim()) {
-      setErrFDescription('Business & project description is required.');
+    if (!fCityDistrict.trim()) {
+      setErrFCityDistrict('City / District is required.');
       isValid = false;
     }
 
-    if (fFundingType === 'Equity' && !fEquityOffered.trim()) {
-      setErrFEquityOffered('Equity offered (%) is required when Equity funding is selected.');
+    const cleanPin = fPincode.replace(/[^0-9]/g, '');
+    if (!cleanPin || cleanPin.length < 4) {
+      setErrFPincode('Valid Pincode / Postal code is required (min 4 digits).');
       isValid = false;
     }
 
-    if (!fLocation.trim()) {
-      setErrFLocation('Business location (City / State) is required.');
+    if (!fStage.trim()) {
+      setErrFStage('Please select your current Business Stage.');
       isValid = false;
+    }
+
+    // Section B Validations
+    const rawDigits = fRequiredAmount.replace(/[^0-9]/g, '');
+    if (!rawDigits || parseInt(rawDigits, 10) <= 0) {
+      setErrFRequiredAmount('Funding Amount Required is required and must be greater than 0.');
+      isValid = false;
+    }
+
+    if (fPurposes.length === 0) {
+      setErrFPurposes('Please select at least one Funding Purpose.');
+      isValid = false;
+    }
+
+    if (!fUtilization.trim() || fUtilization.trim().length < 10) {
+      setErrFUtilization('Please explain how you will use the funding (minimum 10 characters).');
+      isValid = false;
+    }
+
+    if (!fDescription.trim() || fDescription.trim().length < 15) {
+      setErrFDescription('Business Description is required (minimum 15 characters).');
+      isValid = false;
+    }
+
+    if (fFundingType === 'Equity') {
+      const eqNum = parseFloat(fEquityOffered.replace(/[^0-9.]/g, ''));
+      if (isNaN(eqNum) || eqNum <= 0 || eqNum > 100) {
+        setErrFEquityOffered('Valid Equity percentage is required (between 0.1% and 100%).');
+        isValid = false;
+      }
     }
 
     if (!isValid) {
@@ -275,26 +480,34 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
     }
 
     const trackingNumber = `FIC-FND-${Math.floor(1000 + Math.random() * 9000)}`;
+    const fullLocation = `${fCityDistrict.trim()}, ${fState.trim()}, ${fPincode.trim()}, ${fCountry.trim()}`;
+
     const newRecord: FundingRequestRecord = {
       id: `fnd-${Date.now()}`,
       trackingNumber,
       businessName: fBusinessName.trim(),
+      businessType: fBusinessType,
       category: memberCategory,
       subcategory: memberSubcategory,
       sector: fSector,
-      fundingPurpose: fPurpose,
-      fundingType: fFundingType,
-      requiredAmount: fRequiredAmount.trim(),
+      country: fCountry.trim(),
+      state: fState.trim(),
+      cityDistrict: fCityDistrict.trim(),
+      pincode: fPincode.trim(),
+      businessLocation: fullLocation,
       stage: fStage,
+      requiredAmount: fRequiredAmount.trim(),
+      fundingPurpose: fPurposes,
+      fundingUtilization: fUtilization.trim(),
+      currentRevenue: fRevenue || 'Not specified',
       description: fDescription.trim(),
-      currentRevenue: fCurrentRevenue.trim() || 'Not specified',
-      equityOffered: fFundingType === 'Equity' ? fEquityOffered.trim() : undefined,
+      fundingType: fFundingType,
+      equityOffered: fFundingType === 'Equity' ? `${fEquityOffered.trim()}%` : undefined,
       expectedTimeline: fTimeline,
-      businessLocation: fLocation.trim(),
       pitchDeck: fPitchDeck,
       additionalInfo: fAdditionalInfo.trim() || undefined,
       status: 'Sent',
-      createdAt: '06 Nov 2026',
+      createdAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       userId: user?.id,
       userName: user?.fullName,
     };
@@ -308,8 +521,10 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
       sector: newRecord.sector,
       notes: newRecord.description,
       details: {
+        businessType: newRecord.businessType,
         fundingType: newRecord.fundingType,
         requiredAmount: newRecord.requiredAmount,
+        fundingPurpose: Array.isArray(newRecord.fundingPurpose) ? newRecord.fundingPurpose.join(', ') : newRecord.fundingPurpose,
         stage: newRecord.stage,
         equityOffered: newRecord.equityOffered,
         timeline: newRecord.expectedTimeline,
@@ -320,10 +535,9 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
     // Reset Form Fields
     setFBusinessName('');
     setFRequiredAmount('');
+    setFUtilization('');
     setFDescription('');
-    setFCurrentRevenue('');
-    setFEquityOffered('');
-    setFLocation('');
+    setFEquityOffered('10');
     setFPitchDeck(null);
     setFAdditionalInfo('');
 
@@ -572,23 +786,17 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                   </Text>
                 </View>
 
-                {/* 1. Business / Project Name */}
-                <Text style={styles.fieldLabel}>
-                  Business / Project Name <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.inputField, !!errFBusinessName && styles.inputFieldError]}
-                  placeholder="e.g. Apex Precision Aero Components"
-                  placeholderTextColor="#94A3B8"
-                  value={fBusinessName}
-                  onChangeText={(val) => {
-                    setFBusinessName(val);
-                    if (errFBusinessName) setErrFBusinessName(null);
-                  }}
-                />
-                <FieldError error={errFBusinessName} />
+                {/* ========================================================= */}
+                {/* SECTION A – BUSINESS INFORMATION                          */}
+                {/* ========================================================= */}
+                <View style={styles.formSectionHeader}>
+                  <View style={styles.formSectionBadge}>
+                    <Text style={styles.formSectionBadgeText}>Section A</Text>
+                  </View>
+                  <Text style={styles.formSectionTitle}>Business Information</Text>
+                </View>
 
-                {/* 2. Main Category and Subcategory (Dynamic from Member Registration) */}
+                {/* Member Registered Category & Subcategory (Read-only) */}
                 <View style={styles.rowTwoCols}>
                   <View style={{ flex: 1, marginRight: 6 }}>
                     <Text style={styles.fieldLabel}>Main Category</Text>
@@ -612,99 +820,283 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                   </View>
                 </View>
 
-                {/* 3. Industry / Sector */}
+                {/* 1. Business / Company Name */}
                 <Text style={styles.fieldLabel}>
-                  Industry / Sector <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-                  {SECTOR_OPTIONS.map((sec) => (
-                    <TouchableOpacity
-                      key={sec}
-                      style={[styles.chipPill, fSector === sec && styles.chipPillActive]}
-                      onPress={() => setFSector(sec)}
-                    >
-                      <Text style={[styles.chipText, fSector === sec && styles.chipTextActive]}>{sec}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <FieldError error={errFSector} />
-
-                {/* 4. Funding Purpose */}
-                <Text style={styles.fieldLabel}>
-                  Funding Purpose <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-                  {FUNDING_PURPOSES.map((purp) => (
-                    <TouchableOpacity
-                      key={purp}
-                      style={[styles.chipPill, fPurpose === purp && styles.chipPillActive]}
-                      onPress={() => setFPurpose(purp)}
-                    >
-                      <Text style={[styles.chipText, fPurpose === purp && styles.chipTextActive]}>{purp}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <FieldError error={errFPurpose} />
-
-                {/* 5. Funding Type */}
-                <Text style={styles.fieldLabel}>
-                  Funding Type <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <View style={styles.choiceRow}>
-                  {FUNDING_TYPES.map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[styles.choiceBtn, fFundingType === type && styles.choiceBtnActive]}
-                      onPress={() => setFFundingType(type)}
-                    >
-                      <Text style={[styles.choiceBtnText, fFundingType === type && styles.choiceBtnTextActive]}>
-                        {type}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* 6. Required Funding Amount (₹) */}
-                <Text style={styles.fieldLabel}>
-                  Required Funding Amount (₹) <Text style={styles.requiredAsterisk}>*</Text>
+                  Business / Company Name <Text style={styles.requiredAsterisk}>*</Text>
                 </Text>
                 <TextInput
-                  style={[styles.inputField, !!errFRequiredAmount && styles.inputFieldError]}
-                  placeholder="e.g. ₹50 Lakhs or ₹2.5 Crores"
+                  style={[styles.inputField, !!errFBusinessName && styles.inputFieldError]}
+                  placeholder="e.g. Apex Precision Aero Components"
                   placeholderTextColor="#94A3B8"
-                  value={fRequiredAmount}
+                  value={fBusinessName}
                   onChangeText={(val) => {
-                    setFRequiredAmount(val);
-                    if (errFRequiredAmount) setErrFRequiredAmount(null);
+                    setFBusinessName(val);
+                    if (errFBusinessName) setErrFBusinessName(null);
                   }}
                 />
-                <FieldError error={errFRequiredAmount} />
+                <FieldError error={errFBusinessName} />
 
-                {/* 7. Business Stage */}
+                {/* 2. Business Type */}
+                <Text style={styles.fieldLabel}>
+                  Business Type <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={[styles.dropdownPill, !!errFBusinessType && styles.inputFieldError]}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    openDropdownPicker(
+                      'Select Business Type',
+                      BUSINESS_TYPE_OPTIONS,
+                      fBusinessType,
+                      (val) => {
+                        setFBusinessType(val);
+                        if (errFBusinessType) setErrFBusinessType(null);
+                      }
+                    )
+                  }
+                >
+                  <Text style={[styles.dropdownPillText, !fBusinessType && styles.dropdownPlaceholder]} numberOfLines={1}>
+                    {fBusinessType || 'Select Business Type'}
+                  </Text>
+                  <Text style={styles.dropdownChevron}>▼</Text>
+                </TouchableOpacity>
+                <FieldError error={errFBusinessType} />
+
+                {/* 3. Industry / Business Sector */}
+                <Text style={styles.fieldLabel}>
+                  Industry / Business Sector <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={[styles.dropdownPill, !!errFSector && styles.inputFieldError]}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    openDropdownPicker(
+                      'Select Industry / Business Sector',
+                      SECTOR_OPTIONS,
+                      fSector,
+                      (val) => {
+                        setFSector(val);
+                        if (errFSector) setErrFSector(null);
+                      }
+                    )
+                  }
+                >
+                  <Text style={[styles.dropdownPillText, !fSector && styles.dropdownPlaceholder]} numberOfLines={1}>
+                    {fSector || 'Select Industry / Sector'}
+                  </Text>
+                  <Text style={styles.dropdownChevron}>▼</Text>
+                </TouchableOpacity>
+                <FieldError error={errFSector} />
+
+                {/* 4. Business Location */}
+                <Text style={styles.fieldLabel}>
+                  Business Location <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                {/* Location: Country & State */}
+                <View style={styles.rowTwoCols}>
+                  <View style={{ flex: 1, marginRight: 6 }}>
+                    <Text style={styles.subFieldLabel}>Country</Text>
+                    <TouchableOpacity
+                      style={[styles.dropdownPill, !!errFCountry && styles.inputFieldError]}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        openDropdownPicker(
+                          'Select Country',
+                          COUNTRY_OPTIONS,
+                          fCountry,
+                          (val) => {
+                            setFCountry(val);
+                            if (errFCountry) setErrFCountry(null);
+                          }
+                        )
+                      }
+                    >
+                      <Text style={[styles.dropdownPillText, !fCountry && styles.dropdownPlaceholder]} numberOfLines={1}>
+                        {fCountry || 'Country'}
+                      </Text>
+                      <Text style={styles.dropdownChevron}>▼</Text>
+                    </TouchableOpacity>
+                    <FieldError error={errFCountry} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 6 }}>
+                    <Text style={styles.subFieldLabel}>State / Region</Text>
+                    <TouchableOpacity
+                      style={[styles.dropdownPill, !!errFState && styles.inputFieldError]}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        openDropdownPicker(
+                          'Select State / Region',
+                          INDIAN_STATES,
+                          fState,
+                          (val) => {
+                            setFState(val);
+                            if (errFState) setErrFState(null);
+                          }
+                        )
+                      }
+                    >
+                      <Text style={[styles.dropdownPillText, !fState && styles.dropdownPlaceholder]} numberOfLines={1}>
+                        {fState || 'State'}
+                      </Text>
+                      <Text style={styles.dropdownChevron}>▼</Text>
+                    </TouchableOpacity>
+                    <FieldError error={errFState} />
+                  </View>
+                </View>
+
+                {/* Location: City/District & Pincode */}
+                <View style={styles.rowTwoCols}>
+                  <View style={{ flex: 1, marginRight: 6 }}>
+                    <Text style={styles.subFieldLabel}>City / District</Text>
+                    <TextInput
+                      style={[styles.inputField, !!errFCityDistrict && styles.inputFieldError]}
+                      placeholder="e.g. Coimbatore"
+                      placeholderTextColor="#94A3B8"
+                      value={fCityDistrict}
+                      onChangeText={(val) => {
+                        setFCityDistrict(val);
+                        if (errFCityDistrict) setErrFCityDistrict(null);
+                      }}
+                    />
+                    <FieldError error={errFCityDistrict} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 6 }}>
+                    <Text style={styles.subFieldLabel}>Pincode / Postal Code</Text>
+                    <TextInput
+                      style={[styles.inputField, !!errFPincode && styles.inputFieldError]}
+                      placeholder="e.g. 641001"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="numeric"
+                      maxLength={8}
+                      value={fPincode}
+                      onChangeText={(val) => {
+                        setFPincode(val);
+                        if (errFPincode) setErrFPincode(null);
+                      }}
+                    />
+                    <FieldError error={errFPincode} />
+                  </View>
+                </View>
+
+                {/* 5. Business Stage */}
                 <Text style={styles.fieldLabel}>
                   Business Stage <Text style={styles.requiredAsterisk}>*</Text>
                 </Text>
-                <View style={styles.choiceRow}>
-                  {STAGES.map((stg) => (
-                    <TouchableOpacity
-                      key={stg}
-                      style={[styles.choiceBtn, fStage === stg && styles.choiceBtnActive]}
-                      onPress={() => setFStage(stg)}
-                    >
-                      <Text style={[styles.choiceBtnText, fStage === stg && styles.choiceBtnTextActive]}>
-                        {stg}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <TouchableOpacity
+                  style={[styles.dropdownPill, !!errFStage && styles.inputFieldError]}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    openDropdownPicker(
+                      'Select Business Stage',
+                      BUSINESS_STAGE_OPTIONS,
+                      fStage,
+                      (val) => {
+                        setFStage(val);
+                        if (errFStage) setErrFStage(null);
+                      }
+                    )
+                  }
+                >
+                  <Text style={[styles.dropdownPillText, !fStage && styles.dropdownPlaceholder]} numberOfLines={1}>
+                    {fStage || 'Select Business Stage'}
+                  </Text>
+                  <Text style={styles.dropdownChevron}>▼</Text>
+                </TouchableOpacity>
+                <FieldError error={errFStage} />
+
+                {/* ========================================================= */}
+                {/* SECTION B – FUNDING REQUIREMENT                           */}
+                {/* ========================================================= */}
+                <View style={[styles.formSectionHeader, { marginTop: 22 }]}>
+                  <View style={styles.formSectionBadge}>
+                    <Text style={styles.formSectionBadgeText}>Section B</Text>
+                  </View>
+                  <Text style={styles.formSectionTitle}>Funding Requirement</Text>
                 </View>
 
-                {/* 8. Business / Project Description */}
+                {/* 6. Funding Amount Required (INR) */}
                 <Text style={styles.fieldLabel}>
-                  Business / Project Description <Text style={styles.requiredAsterisk}>*</Text>
+                  Funding Amount Required (INR) <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <TextInput
+                  style={[styles.inputField, !!errFRequiredAmount && styles.inputFieldError]}
+                  placeholder="e.g. ₹ 50,00,000"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="numeric"
+                  value={fRequiredAmount}
+                  onChangeText={handleAmountChange}
+                />
+                <FieldError error={errFRequiredAmount} />
+
+                {/* 7. Funding Purpose (multi-select) */}
+                <Text style={styles.fieldLabel}>
+                  Funding Purpose (Select multiple) <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <View style={styles.multiSelectChipsWrap}>
+                  {FUNDING_PURPOSE_OPTIONS.map((purpose) => {
+                    const isSelected = fPurposes.includes(purpose);
+                    return (
+                      <TouchableOpacity
+                        key={purpose}
+                        style={[styles.multiChip, isSelected && styles.multiChipActive]}
+                        activeOpacity={0.75}
+                        onPress={() => toggleFundingPurpose(purpose)}
+                      >
+                        <Text style={[styles.multiChipText, isSelected && styles.multiChipTextActive]}>
+                          {isSelected ? '✓ ' : '+ '}
+                          {purpose}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <FieldError error={errFPurposes} />
+
+                {/* 8. Explain How You Will Use the Funding */}
+                <Text style={styles.fieldLabel}>
+                  Explain How You Will Use the Funding <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <TextInput
+                  style={[styles.inputField, styles.textAreaField, !!errFUtilization && styles.inputFieldError]}
+                  placeholder="Detail how the capital will be allocated (e.g. 40% automated machinery, 30% working capital inventory, 20% team hiring, 10% marketing)..."
+                  placeholderTextColor="#94A3B8"
+                  multiline
+                  numberOfLines={4}
+                  value={fUtilization}
+                  onChangeText={(val) => {
+                    setFUtilization(val);
+                    if (errFUtilization) setErrFUtilization(null);
+                  }}
+                />
+                <FieldError error={errFUtilization} />
+
+                {/* 9. Current Annual Revenue */}
+                <Text style={styles.fieldLabel}>Current Annual Revenue (Optional)</Text>
+                <TouchableOpacity
+                  style={styles.dropdownPill}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    openDropdownPicker(
+                      'Select Current Annual Revenue',
+                      ANNUAL_REVENUE_OPTIONS,
+                      fRevenue,
+                      (val) => setFRevenue(val)
+                    )
+                  }
+                >
+                  <Text style={[styles.dropdownPillText, !fRevenue && styles.dropdownPlaceholder]} numberOfLines={1}>
+                    {fRevenue || 'Select Current Revenue'}
+                  </Text>
+                  <Text style={styles.dropdownChevron}>▼</Text>
+                </TouchableOpacity>
+
+                {/* 10. Business Description */}
+                <Text style={styles.fieldLabel}>
+                  Business Description <Text style={styles.requiredAsterisk}>*</Text>
                 </Text>
                 <TextInput
                   style={[styles.inputField, styles.textAreaField, !!errFDescription && styles.inputFieldError]}
-                  placeholder="Describe your operational model, products/services, competitive moat, and revenue channels..."
+                  placeholder="Describe your operational model, products/services, competitive moat, customer traction, and revenue channels..."
                   placeholderTextColor="#94A3B8"
                   multiline
                   numberOfLines={4}
@@ -716,17 +1108,25 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                 />
                 <FieldError error={errFDescription} />
 
-                {/* 9. Current Revenue (if applicable) */}
-                <Text style={styles.fieldLabel}>Current Annual / Monthly Revenue (if applicable)</Text>
-                <TextInput
-                  style={styles.inputField}
-                  placeholder="e.g. ₹42 Lakhs ARR or Pre-revenue"
-                  placeholderTextColor="#94A3B8"
-                  value={fCurrentRevenue}
-                  onChangeText={setFCurrentRevenue}
-                />
+                {/* 11. Funding Type */}
+                <Text style={styles.fieldLabel}>
+                  Funding Type <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+                  {FUNDING_TYPE_OPTIONS.map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[styles.chipPill, fFundingType === type && styles.chipPillActive]}
+                      onPress={() => setFFundingType(type)}
+                    >
+                      <Text style={[styles.chipText, fFundingType === type && styles.chipTextActive]}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
 
-                {/* 10. Equity Offered (%) – ONLY when Equity is selected */}
+                {/* 12. Equity Offered (%) – ONLY when Equity is selected */}
                 {fFundingType === 'Equity' && (
                   <View style={styles.conditionalBox}>
                     <Text style={styles.fieldLabel}>
@@ -734,7 +1134,7 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                     </Text>
                     <TextInput
                       style={[styles.inputField, !!errFEquityOffered && styles.inputFieldError]}
-                      placeholder="e.g. 10% - 15%"
+                      placeholder="e.g. 10"
                       placeholderTextColor="#94A3B8"
                       keyboardType="numeric"
                       value={fEquityOffered}
@@ -750,37 +1150,27 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                   </View>
                 )}
 
-                {/* 11. Expected Funding Timeline */}
+                {/* 13. Expected Funding Timeline */}
                 <Text style={styles.fieldLabel}>Expected Funding Timeline</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-                  {TIMELINES.map((time) => (
-                    <TouchableOpacity
-                      key={time}
-                      style={[styles.chipPill, fTimeline === time && styles.chipPillActive]}
-                      onPress={() => setFTimeline(time)}
-                    >
-                      <Text style={[styles.chipText, fTimeline === time && styles.chipTextActive]}>{time}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <TouchableOpacity
+                  style={styles.dropdownPill}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    openDropdownPicker(
+                      'Select Expected Funding Timeline',
+                      TIMELINE_OPTIONS,
+                      fTimeline,
+                      (val) => setFTimeline(val)
+                    )
+                  }
+                >
+                  <Text style={[styles.dropdownPillText, !fTimeline && styles.dropdownPlaceholder]} numberOfLines={1}>
+                    {fTimeline || 'Select Expected Timeline'}
+                  </Text>
+                  <Text style={styles.dropdownChevron}>▼</Text>
+                </TouchableOpacity>
 
-                {/* 12. Business Location */}
-                <Text style={styles.fieldLabel}>
-                  Business Location <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.inputField, !!errFLocation && styles.inputFieldError]}
-                  placeholder="e.g. Coimbatore, Tamil Nadu, India"
-                  placeholderTextColor="#94A3B8"
-                  value={fLocation}
-                  onChangeText={(val) => {
-                    setFLocation(val);
-                    if (errFLocation) setErrFLocation(null);
-                  }}
-                />
-                <FieldError error={errFLocation} />
-
-                {/* 13. Pitch Deck / Supporting Document Upload */}
+                {/* 14. Pitch Deck / Supporting Document Upload */}
                 <Text style={styles.fieldLabel}>Pitch Deck / Supporting Document (Optional)</Text>
                 {fPitchDeck ? (
                   <View style={styles.fileAttachedRow}>
@@ -811,7 +1201,7 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                   </TouchableOpacity>
                 )}
 
-                {/* 14. Additional Information */}
+                {/* 15. Additional Information */}
                 <Text style={styles.fieldLabel}>Additional Information / Facilitator Notes</Text>
                 <TextInput
                   style={[styles.inputField, styles.textAreaField]}
@@ -823,7 +1213,7 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                   onChangeText={setFAdditionalInfo}
                 />
 
-                {/* 15. Form Action Buttons */}
+                {/* 16. Form Action Buttons */}
                 <View style={styles.formActionButtonsRow}>
                   <TouchableOpacity
                     style={styles.cancelBtn}
@@ -901,7 +1291,9 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                       </View>
 
                       <View style={styles.purposeBox}>
-                        <Text style={styles.purposeLabel}>Purpose: {req.fundingPurpose}</Text>
+                        <Text style={styles.purposeLabel}>
+                          Purpose: {Array.isArray(req.fundingPurpose) ? req.fundingPurpose.join(', ') : req.fundingPurpose}
+                        </Text>
                         <Text style={styles.purposeDesc} numberOfLines={2}>
                           {req.description}
                         </Text>
@@ -1321,9 +1713,26 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                 <Text style={styles.modalDetailVal}>{selectedFundingRecord?.subcategory || 'Not Available'}</Text>
               </View>
 
+              {selectedFundingRecord?.businessType && (
+                <View style={styles.modalDetailRow}>
+                  <Text style={styles.modalDetailLabel}>Business Type:</Text>
+                  <Text style={styles.modalDetailVal}>{selectedFundingRecord.businessType}</Text>
+                </View>
+              )}
+
               <View style={styles.modalDetailRow}>
                 <Text style={styles.modalDetailLabel}>Industry / Sector:</Text>
                 <Text style={styles.modalDetailVal}>{selectedFundingRecord?.sector}</Text>
+              </View>
+
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Business Stage:</Text>
+                <Text style={styles.modalDetailVal}>{selectedFundingRecord?.stage}</Text>
+              </View>
+
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Location:</Text>
+                <Text style={styles.modalDetailVal}>{selectedFundingRecord?.businessLocation}</Text>
               </View>
 
               <View style={styles.modalDetailRow}>
@@ -1345,15 +1754,12 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                 </View>
               )}
 
-              <View style={styles.modalDetailRow}>
-                <Text style={styles.modalDetailLabel}>Business Stage:</Text>
-                <Text style={styles.modalDetailVal}>{selectedFundingRecord?.stage}</Text>
-              </View>
-
-              <View style={styles.modalDetailRow}>
-                <Text style={styles.modalDetailLabel}>Location:</Text>
-                <Text style={styles.modalDetailVal}>{selectedFundingRecord?.businessLocation}</Text>
-              </View>
+              {selectedFundingRecord?.currentRevenue && (
+                <View style={styles.modalDetailRow}>
+                  <Text style={styles.modalDetailLabel}>Annual Revenue:</Text>
+                  <Text style={styles.modalDetailVal}>{selectedFundingRecord.currentRevenue}</Text>
+                </View>
+              )}
 
               <View style={styles.modalDetailRow}>
                 <Text style={styles.modalDetailLabel}>Timeline:</Text>
@@ -1361,9 +1767,32 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
               </View>
 
               <View style={styles.modalSectionBox}>
+                <Text style={styles.modalSectionLabel}>Funding Purpose:</Text>
+                <Text style={styles.modalSectionBody}>
+                  {Array.isArray(selectedFundingRecord?.fundingPurpose)
+                    ? selectedFundingRecord?.fundingPurpose.join(', ')
+                    : selectedFundingRecord?.fundingPurpose}
+                </Text>
+              </View>
+
+              {selectedFundingRecord?.fundingUtilization && (
+                <View style={styles.modalSectionBox}>
+                  <Text style={styles.modalSectionLabel}>Use of Funding:</Text>
+                  <Text style={styles.modalSectionBody}>{selectedFundingRecord.fundingUtilization}</Text>
+                </View>
+              )}
+
+              <View style={styles.modalSectionBox}>
                 <Text style={styles.modalSectionLabel}>Business Description:</Text>
                 <Text style={styles.modalSectionBody}>{selectedFundingRecord?.description}</Text>
               </View>
+
+              {selectedFundingRecord?.additionalInfo && (
+                <View style={styles.modalSectionBox}>
+                  <Text style={styles.modalSectionLabel}>Additional Facilitator Notes:</Text>
+                  <Text style={styles.modalSectionBody}>{selectedFundingRecord.additionalInfo}</Text>
+                </View>
+              )}
 
               {selectedFundingRecord?.pitchDeck && (
                 <View style={styles.modalSectionBox}>
@@ -1470,6 +1899,56 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* ============================================================== */}
+      {/* 6. GENERIC BOTTOM SHEET DROPDOWN PICKER                        */}
+      {/* ============================================================== */}
+      <Modal
+        visible={pickerModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerModal((prev) => ({ ...prev, visible: false }))}
+      >
+        <TouchableOpacity
+          style={styles.pickerModalOverlay}
+          activeOpacity={1}
+          onPress={() => setPickerModal((prev) => ({ ...prev, visible: false }))}
+        >
+          <View
+            style={styles.pickerModalContent}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>{pickerModal.title}</Text>
+              <TouchableOpacity
+                style={styles.pickerModalCloseBtn}
+                onPress={() => setPickerModal((prev) => ({ ...prev, visible: false }))}
+              >
+                <Text style={styles.pickerModalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerModalBody} showsVerticalScrollIndicator={false}>
+              {pickerModal.options.map((opt) => {
+                const isSelected = pickerModal.selectedValue === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.pickerOptionItem, isSelected && styles.pickerOptionItemSelected]}
+                    onPress={() => pickerModal.onSelect(opt)}
+                  >
+                    <Text
+                      style={[styles.pickerOptionText, isSelected && styles.pickerOptionTextSelected]}
+                    >
+                      {opt}
+                    </Text>
+                    {isSelected && <Text style={styles.pickerCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
@@ -2211,5 +2690,151 @@ const styles = StyleSheet.create({
     color: '#065F46',
     lineHeight: 16,
     fontFamily: fontSansSerif,
+  },
+
+  // Section Headers & Dropdown Pickers
+  formSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 12,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  formSectionBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  formSectionBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+    fontFamily: fontSansSerif,
+  },
+  formSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: fontSansSerif,
+  },
+  subFieldLabel: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 4,
+    fontFamily: fontSansSerif,
+  },
+  dropdownPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.2,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    minHeight: 46,
+  },
+  dropdownPillText: {
+    fontSize: 13.5,
+    color: '#0F172A',
+    fontWeight: '500',
+    flex: 1,
+    fontFamily: fontSansSerif,
+  },
+  dropdownPlaceholder: {
+    color: '#94A3B8',
+    fontWeight: '400',
+  },
+  dropdownChevron: {
+    fontSize: 11,
+    color: '#64748B',
+    marginLeft: 6,
+  },
+
+  // Dropdown Picker Modal
+  pickerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'flex-end',
+  },
+  pickerModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '65%',
+    paddingBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  pickerModalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: fontSansSerif,
+  },
+  pickerModalCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerModalCloseText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  pickerModalBody: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  pickerOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginVertical: 2,
+  },
+  pickerOptionItemSelected: {
+    backgroundColor: '#EFF6FF',
+  },
+  pickerOptionText: {
+    fontSize: 13.5,
+    color: '#334155',
+    fontFamily: fontSansSerif,
+    flex: 1,
+  },
+  pickerOptionTextSelected: {
+    color: '#2563EB',
+    fontWeight: '700',
+  },
+  pickerCheckmark: {
+    fontSize: 14,
+    color: '#2563EB',
+    fontWeight: '700',
+    marginLeft: 8,
   },
 });

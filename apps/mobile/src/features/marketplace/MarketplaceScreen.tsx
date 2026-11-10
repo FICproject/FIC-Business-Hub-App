@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { StandardHeader } from '../../components/common/StandardHeader';
 import { BusinessSector, MarketplaceService } from '../../types';
 import { notify } from '../../components/common/NotificationContext';
 import { useStudentMentor } from '../../state/StudentMentorContext';
+import { storageService } from '../../services/storageService';
 
 const fontSansSerif = Platform.OS === 'android' ? 'sans-serif' : 'System';
 
@@ -23,39 +24,119 @@ const SECTORS: string[] = [
   'Manufacturing',
   'Technology',
   'Education',
+  'Investment',
   'Professional Services',
   'Agriculture',
-  'Investment & Finance',
   'Healthcare',
   'Creative Media',
   'Employment & Community',
 ];
 
+const resolveSector = (sec?: string): string => {
+  if (!sec) return 'All';
+  const s = sec.trim().toLowerCase();
+  if (s.includes('manufacturing')) return 'Manufacturing';
+  if (s.includes('tech')) return 'Technology';
+  if (s.includes('education')) return 'Education';
+  if (s.includes('invest') || s.includes('finance')) return 'Investment';
+  if (s === 'all') return 'All';
+  const found = SECTORS.find((item) => item.toLowerCase() === s);
+  return found || sec;
+};
+
 const MOCK_SERVICES: MarketplaceService[] = [];
 
 interface MarketplaceScreenProps {
   onBack?: () => void;
-  onNavigateToModule?: (moduleName: string) => void;
+  onNavigateToModule?: (moduleName: string, params?: any) => void;
+  initialSector?: string;
 }
 
 export const MarketplaceScreen: React.FC<MarketplaceScreenProps> = ({
   onBack,
   onNavigateToModule,
+  initialSector = 'All',
 }) => {
   const { addChamberRequest } = useStudentMentor();
-  const [selectedSector, setSelectedSector] = useState<string>('All');
+  const [selectedSector, setSelectedSector] = useState<string>(() => resolveSector(initialSector));
+  const [services, setServices] = useState<MarketplaceService[]>(MOCK_SERVICES);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedService, setSelectedService] = useState<MarketplaceService | null>(null);
   const [requirementNotes, setRequirementNotes] = useState('');
   const [targetQuantity, setTargetQuantity] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
 
-  const filteredServices = MOCK_SERVICES.filter((srv) => {
-    const matchesSector = selectedSector === 'All' || srv.sector === selectedSector;
+  const sectorScrollRef = useRef<ScrollView>(null);
+  const sectorLayouts = useRef<{ [key: string]: { x: number; width: number } }>({});
+
+  const scrollToSector = useCallback((sectorName: string) => {
+    const layout = sectorLayouts.current[sectorName];
+    if (layout && sectorScrollRef.current) {
+      sectorScrollRef.current.scrollTo({
+        x: Math.max(0, layout.x - 20),
+        animated: true,
+      });
+    }
+  }, []);
+
+  // Update selectedSector and scroll when initialSector prop changes
+  useEffect(() => {
+    if (initialSector) {
+      const resolved = resolveSector(initialSector);
+      setSelectedSector(resolved);
+      setTimeout(() => {
+        scrollToSector(resolved);
+      }, 100);
+    }
+  }, [initialSector, scrollToSector]);
+
+  // Load verified/approved services from storage or API
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const raw = await storageService.getItem('FIC_MY_SERVICES_DRAFTS');
+        if (raw && isMounted) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const approved = parsed.filter((item: any) => item.status === 'APPROVED');
+            if (approved.length > 0) {
+              const mapped: MarketplaceService[] = approved.map((item: any) => ({
+                id: item.id,
+                title: item.title,
+                sector: (item.sector || 'Manufacturing') as any,
+                subcategory: item.subcategory || item.category || 'Capability',
+                deliverables: item.deliverables ? item.deliverables.split('\n').filter((d: string) => d.trim()) : [],
+                turnaroundTime: item.turnaroundTime || '3-5 Days',
+                verifiedByFIC: true,
+                description: item.description || '',
+              }));
+              setServices(mapped);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Error loading approved marketplace services:', e);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const filteredServices = services.filter((srv) => {
+    const srvSec = (srv.sector || '').toLowerCase();
+    const matchesSector =
+      selectedSector === 'All' ||
+      srv.sector === selectedSector ||
+      (selectedSector === 'Manufacturing' && srvSec.includes('manufactur')) ||
+      (selectedSector === 'Technology' && srvSec.includes('tech')) ||
+      (selectedSector === 'Education' && srvSec.includes('education')) ||
+      (selectedSector === 'Investment' && (srvSec.includes('invest') || srvSec.includes('finance')));
     const matchesSearch =
-      srv.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      srv.subcategory.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      srv.description.toLowerCase().includes(searchQuery.toLowerCase());
+      (srv.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (srv.subcategory || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (srv.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSector && matchesSearch;
   });
 
@@ -120,6 +201,7 @@ export const MarketplaceScreen: React.FC<MarketplaceScreenProps> = ({
 
         {/* Sector Filter Chips */}
         <ScrollView
+          ref={sectorScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.sectorChipsContainer}
@@ -131,6 +213,16 @@ export const MarketplaceScreen: React.FC<MarketplaceScreenProps> = ({
                 key={sector}
                 style={[styles.sectorChip, isSelected && styles.sectorChipActive]}
                 activeOpacity={0.7}
+                onLayout={(e) => {
+                  const { x, width } = e.nativeEvent.layout;
+                  sectorLayouts.current[sector] = { x, width };
+                  if (sector === selectedSector && sector !== 'All') {
+                    sectorScrollRef.current?.scrollTo({
+                      x: Math.max(0, x - 20),
+                      animated: true,
+                    });
+                  }
+                }}
                 onPress={() => setSelectedSector(sector)}
               >
                 <Text style={[styles.sectorChipText, isSelected && styles.sectorChipTextActive]}>

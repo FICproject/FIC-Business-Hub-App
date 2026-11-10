@@ -29,7 +29,7 @@ const WAVE_WIDTH = SCREEN_WIDTH;
 const WAVE_HEIGHT = WAVE_WIDTH * (576 / 1024);
 
 interface DashboardScreenProps {
-  onNavigateToModule: (moduleName: string) => void;
+  onNavigateToModule: (moduleName: string, params?: any) => void;
 }
 
 // -------------------------------------------------------------
@@ -1644,7 +1644,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <TouchableOpacity
                   style={styles.categoryCard}
                   activeOpacity={0.8}
-                  onPress={() => onNavigateToModule('Marketplace')}
+                  onPress={() => onNavigateToModule('Marketplace', { category: 'Manufacturing' })}
+                  accessibilityLabel="Manufacturing and Industrial Category"
                 >
                   <View style={[styles.categoryIconCircle, { backgroundColor: '#EFF6FF' }]}>
                     <FactoryVectorIcon color="#0284C7" />
@@ -1658,7 +1659,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <TouchableOpacity
                   style={styles.categoryCard}
                   activeOpacity={0.8}
-                  onPress={() => onNavigateToModule('Marketplace')}
+                  onPress={() => onNavigateToModule('Marketplace', { category: 'Technology' })}
+                  accessibilityLabel="Technology and Digital Category"
                 >
                   <View style={[styles.categoryIconCircle, { backgroundColor: '#ECFDF5' }]}>
                     <LaptopVectorIcon color="#10B981" />
@@ -1672,7 +1674,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <TouchableOpacity
                   style={styles.categoryCard}
                   activeOpacity={0.8}
-                  onPress={() => onNavigateToModule('Investment')}
+                  onPress={() => onNavigateToModule('Marketplace', { category: 'Investment' })}
+                  accessibilityLabel="Investment and Finance Category"
                 >
                   <View style={[styles.categoryIconCircle, { backgroundColor: '#FFFBEB' }]}>
                     <CoinsVectorIcon color="#F59E0B" />
@@ -1686,7 +1689,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <TouchableOpacity
                   style={styles.categoryCard}
                   activeOpacity={0.8}
-                  onPress={() => onNavigateToModule('Marketplace')}
+                  onPress={() => onNavigateToModule('Marketplace', { category: 'Education' })}
+                  accessibilityLabel="Education and Knowledge Category"
                 >
                   <View style={[styles.categoryIconCircle, { backgroundColor: '#FAF5FF' }]}>
                     <GradCapVectorIcon color="#8B5CF6" />

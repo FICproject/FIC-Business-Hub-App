@@ -87,6 +87,7 @@ const MobileAppContent: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<TabKey>('Home');
   const [activeSubModule, setActiveSubModule] = useState<string | null>(null);
   const [navHistory, setNavHistory] = useState<NavState[]>([]);
+  const [marketplaceCategory, setMarketplaceCategory] = useState<string>('All');
 
   // Exit App Confirmation Dialog (Reusing existing notification & confirm dialog)
   const showExitConfirmation = useCallback(() => {
@@ -183,7 +184,10 @@ const MobileAppContent: React.FC = () => {
 
   // Navigate helper that properly maintains stack history
   const navigateTo = useCallback(
-    (targetTab: TabKey, targetSubModule: string | null = null) => {
+    (targetTab: TabKey, targetSubModule: string | null = null, params?: any) => {
+      if (params?.category) {
+        setMarketplaceCategory(params.category);
+      }
       if (currentTab === targetTab && activeSubModule === targetSubModule) {
         return;
       }
@@ -203,64 +207,84 @@ const MobileAppContent: React.FC = () => {
     [currentTab, activeSubModule]
   );
 
-  // Navigation handler supporting all 8 platform functions + direct shortcuts
-  const handleNavigateToModule = useCallback((mod: string) => {
-    switch (mod) {
-      case 'Dashboard':
-      case 'Home':
-        navigateTo('Home', null);
-        break;
-      case 'Marketplace':
-      case 'Services':
-        navigateTo('Services', null);
-        break;
-      case 'My Requests':
-      case 'Requests':
-        navigateTo('Requests', null);
-        break;
-      case 'Meetings':
-      case 'Connections':
-        navigateTo('Connections', null);
-        break;
-      case 'Business Ideas':
-        navigateTo(currentTab, 'Business Ideas');
-        break;
-      case 'Scaling':
-        navigateTo(currentTab, 'Scaling');
-        break;
-      case 'Investment':
-        navigateTo(currentTab, 'Investment');
-        break;
-      case 'My Services':
-        navigateTo(currentTab, isStudent ? 'Skill Development' : 'My Services');
-        break;
-      case 'Skill Development':
-        navigateTo(currentTab, 'Skill Development');
-        break;
-      case 'Notifications':
-        navigateTo('Notifications', null);
-        break;
-      case 'Profile':
-        navigateTo('Profile', null);
-        break;
-      case 'Membership & Payments':
-      case 'Membership':
-      case 'Payments':
-        navigateTo(currentTab, 'Membership & Payments');
-        break;
-      case 'Sessions':
-        navigateTo(isMentor ? 'Sessions' : 'Connections', null);
-        break;
-      case 'Students':
-        navigateTo(isMentor ? 'Students' : 'Connections', null);
-        break;
-      case 'Courses':
-        navigateTo(isMentor ? 'Courses' : 'Services', null);
-        break;
-      default:
-        navigateTo(currentTab, mod);
-    }
-  }, [currentTab, isMentor, isStudent, navigateTo]);
+  // Navigation handler supporting all 8 platform functions + direct shortcuts & category parameters
+  const handleNavigateToModule = useCallback(
+    (mod: string, params?: { category?: string } | any) => {
+      let targetCategory: string | undefined = params?.category;
+
+      let cleanMod = mod;
+      if (mod.startsWith('Marketplace:') || mod.startsWith('Services:')) {
+        const parts = mod.split(':');
+        cleanMod = parts[0];
+        targetCategory = parts[1];
+      }
+
+      if (targetCategory) {
+        setMarketplaceCategory(targetCategory);
+      } else if (cleanMod === 'Marketplace' || cleanMod === 'Services') {
+        if (!params || params.category === undefined) {
+          setMarketplaceCategory('All');
+        }
+      }
+
+      switch (cleanMod) {
+        case 'Dashboard':
+        case 'Home':
+          navigateTo('Home', null);
+          break;
+        case 'Marketplace':
+        case 'Services':
+          navigateTo('Services', null, { category: targetCategory || 'All' });
+          break;
+        case 'My Requests':
+        case 'Requests':
+          navigateTo('Requests', null);
+          break;
+        case 'Meetings':
+        case 'Connections':
+          navigateTo('Connections', null);
+          break;
+        case 'Business Ideas':
+          navigateTo(currentTab, 'Business Ideas');
+          break;
+        case 'Scaling':
+          navigateTo(currentTab, 'Scaling');
+          break;
+        case 'Investment':
+          navigateTo(currentTab, 'Investment');
+          break;
+        case 'My Services':
+          navigateTo(currentTab, isStudent ? 'Skill Development' : 'My Services');
+          break;
+        case 'Skill Development':
+          navigateTo(currentTab, 'Skill Development');
+          break;
+        case 'Notifications':
+          navigateTo('Notifications', null);
+          break;
+        case 'Profile':
+          navigateTo('Profile', null);
+          break;
+        case 'Membership & Payments':
+        case 'Membership':
+        case 'Payments':
+          navigateTo(currentTab, 'Membership & Payments');
+          break;
+        case 'Sessions':
+          navigateTo(isMentor ? 'Sessions' : 'Connections', null);
+          break;
+        case 'Students':
+          navigateTo(isMentor ? 'Students' : 'Connections', null);
+          break;
+        case 'Courses':
+          navigateTo(isMentor ? 'Courses' : 'Services', null);
+          break;
+        default:
+          navigateTo(currentTab, cleanMod);
+      }
+    },
+    [currentTab, isMentor, isStudent, navigateTo]
+  );
 
   // Firebase Cloud Messaging (FCM) Integration - must run unconditionally across all render passes
   useEffect(() => {
@@ -493,7 +517,17 @@ const MobileAppContent: React.FC = () => {
       case 'Marketplace':
         return (
           <MarketplaceScreen
-            onBack={() => setCurrentTab('Home')}
+            initialSector={marketplaceCategory}
+            onBack={() => {
+              if (navHistory.length > 0) {
+                const prev = navHistory[navHistory.length - 1];
+                setNavHistory((h) => h.slice(0, -1));
+                setCurrentTab(prev.tab);
+                setActiveSubModule(prev.subModule);
+              } else {
+                setCurrentTab('Home');
+              }
+            }}
             onNavigateToModule={handleNavigateToModule}
           />
         );
@@ -567,6 +601,9 @@ const MobileAppContent: React.FC = () => {
         currentTab={currentTab}
         isMentor={isMentor}
         onSelectTab={(tab) => {
+          if (tab === 'Services') {
+            setMarketplaceCategory('All');
+          }
           navigateTo(tab, null);
         }}
         unreadCount={unreadNotifCount}

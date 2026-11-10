@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
   PermissionsAndroid,
   Linking,
+  Alert,
 } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import DocumentPicker, { types as docTypes } from 'react-native-document-picker';
@@ -19,6 +20,7 @@ import { FieldError } from '../../components/common/FieldError';
 import { useAuth } from '../../state/AuthContext';
 import { useStudentMentor } from '../../state/StudentMentorContext';
 import { notify } from '../../components/common/NotificationContext';
+import { storageService } from '../../services/storageService';
 
 const fontSansSerif = Platform.OS === 'android' ? 'sans-serif' : 'System';
 
@@ -41,7 +43,7 @@ interface ProviderService {
   tat: string;
   fee?: string;
   inquiriesCount: number;
-  status: 'ACTIVE' | 'UNDER_REVIEW' | 'PAUSED' | 'DRAFT';
+  status: 'ACTIVE' | 'UNDER_REVIEW' | 'PAUSED' | 'DRAFT' | 'REJECTED';
   subcategory?: string;
   shortSummary?: string;
   fullDescription?: string;
@@ -139,9 +141,10 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
   const [consultations, setConsultations] = useState<ConsultationRequest[]>(INITIAL_CONSULTATIONS);
 
   // Mentor Tabs: TEACHING, VIDEOS, CAPABILITIES, REQUESTS
-  // Provider Tabs: ALL, B2B, MASTERCLASS
+  // Provider Tabs: ALL, B2B, MASTERCLASS, DRAFTS
+  type ProviderTabType = 'ALL' | 'B2B' | 'MASTERCLASS' | 'DRAFTS';
   const [mentorTab, setMentorTab] = useState<'TEACHING' | 'VIDEOS' | 'CAPABILITIES' | 'REQUESTS'>('TEACHING');
-  const [providerTab, setProviderTab] = useState<'ALL' | 'B2B' | 'MASTERCLASS'>('ALL');
+  const [providerTab, setProviderTab] = useState<ProviderTabType>('ALL');
 
   // Modals
   const [serviceModalVisible, setServiceModalVisible] = useState(false);
@@ -149,10 +152,42 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [selectedConsultation, setSelectedConsultation] = useState<ConsultationRequest | null>(null);
 
+  // Draft Editing State
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+
+  // Load saved services and drafts from persistent storage on mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadSavedServices = async () => {
+      try {
+        const savedData = await storageService.getItem('FIC_MY_SERVICES_DRAFTS');
+        if (savedData && isMounted) {
+          const parsed = JSON.parse(savedData);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setServices(parsed);
+          }
+        }
+      } catch (e) {
+        console.warn('Error loading drafts from storage:', e);
+      }
+    };
+    loadSavedServices();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const updateAndPersistServices = (updated: ProviderService[]) => {
+    setServices(updated);
+    storageService.setItem('FIC_MY_SERVICES_DRAFTS', JSON.stringify(updated)).catch((err) => {
+      console.warn('Error saving drafts to storage:', err);
+    });
+  };
+
   // --- Complete Add New Service / Capability Form State (Matching Website) ---
   const [serviceTitle, setServiceTitle] = useState('');
   const [primarySector, setPrimarySector] = useState('Manufacturing');
-  const [serviceType, setServiceType] = useState<'Teaching Service' | 'B2B Capability'>('B2B Capability');
+  const [serviceType, setServiceType] = useState<'Teaching Service' | 'B2B Capability' | 'Masterclass'>('B2B Capability');
   const [subcategory, setSubcategory] = useState('');
   const [cardSummary, setCardSummary] = useState('');
   const [fullDescription, setFullDescription] = useState('');
@@ -185,8 +220,10 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
   }>({});
 
   const resetPublishForm = () => {
+    setEditingServiceId(null);
     setServiceTitle('');
     setPrimarySector('Manufacturing');
+    setServiceType('B2B Capability');
     setSubcategory('');
     setCardSummary('');
     setFullDescription('');
@@ -201,45 +238,100 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
     setFormErrors({});
   };
 
+  const handleOpenCreateModal = (type: 'Teaching Service' | 'B2B Capability' = 'B2B Capability') => {
+    resetPublishForm();
+    setServiceType(type);
+    setServiceModalVisible(true);
+  };
+
+  const handleEditDraft = (draft: ProviderService) => {
+    setEditingServiceId(draft.id);
+    setServiceTitle(draft.title || '');
+    setPrimarySector(draft.sector || 'Manufacturing');
+    setServiceType(draft.type || 'B2B Capability');
+    setSubcategory(draft.subcategory || '');
+    setCardSummary(draft.shortSummary || '');
+    setFullDescription(draft.fullDescription || '');
+    setKeyServices(draft.keyServices || draft.deliverables || '');
+    setCoreSkills(draft.coreSkills || '');
+    setMarketplaceTags(draft.marketplaceTags || '');
+    setCoverageArea(draft.coverageArea || 'All India (Pan-India)');
+    setDeliveryMode(draft.deliveryMode || 'Hybrid (On-Site & Remote)');
+    setPortfolioUrl(draft.portfolioUrl || '');
+    setCertificationRef(draft.certificationRef || '');
+    setGovernanceAgreed(draft.governanceAgreed || false);
+    setFormErrors({});
+    setServiceModalVisible(true);
+  };
+
   const handleCancelPublish = () => {
     resetPublishForm();
     setServiceModalVisible(false);
   };
 
   const handleSaveDraft = () => {
-    if (!serviceTitle.trim()) {
-      setFormErrors({ serviceTitle: 'Service title is required to save a draft.' });
-      notify.warning('Please enter a Service Title to save this draft.', 'Title Required');
-      return;
+    const finalTitle = serviceTitle.trim() || 'Untitled Draft';
+
+    if (editingServiceId) {
+      // Update existing draft in-place
+      const updated = services.map((s) => {
+        if (s.id === editingServiceId) {
+          return {
+            ...s,
+            title: finalTitle,
+            type: serviceType,
+            sector: primarySector,
+            deliverables: keyServices.trim() || cardSummary.trim() || fullDescription.trim().slice(0, 100) || 'Custom Scope Draft',
+            tat: deliveryMode,
+            status: 'DRAFT' as const,
+            subcategory: subcategory.trim(),
+            shortSummary: cardSummary.trim(),
+            fullDescription: fullDescription.trim(),
+            keyServices: keyServices.trim(),
+            coreSkills: coreSkills.trim(),
+            marketplaceTags: marketplaceTags.trim(),
+            coverageArea,
+            deliveryMode,
+            portfolioUrl: portfolioUrl.trim(),
+            certificationRef: certificationRef.trim(),
+            governanceAgreed,
+          };
+        }
+        return s;
+      });
+      updateAndPersistServices(updated);
+      resetPublishForm();
+      setServiceModalVisible(false);
+      notify.info('Draft changes saved successfully.', 'Draft Updated');
+    } else {
+      // Create new draft
+      const draftSrv: ProviderService = {
+        id: `my-srv-${Date.now()}`,
+        title: finalTitle,
+        type: serviceType,
+        sector: primarySector,
+        deliverables: keyServices.trim() || cardSummary.trim() || fullDescription.trim().slice(0, 100) || 'Custom Scope Draft',
+        tat: deliveryMode,
+        fee: 'Custom Quotation',
+        inquiriesCount: 0,
+        status: 'DRAFT',
+        subcategory: subcategory.trim(),
+        shortSummary: cardSummary.trim(),
+        fullDescription: fullDescription.trim(),
+        keyServices: keyServices.trim(),
+        coreSkills: coreSkills.trim(),
+        marketplaceTags: marketplaceTags.trim(),
+        coverageArea,
+        deliveryMode,
+        portfolioUrl: portfolioUrl.trim(),
+        certificationRef: certificationRef.trim(),
+        governanceAgreed,
+      };
+      updateAndPersistServices([draftSrv, ...services]);
+      resetPublishForm();
+      setServiceModalVisible(false);
+      notify.info('Your service listing has been saved as Draft.', 'Saved as Draft');
     }
-
-    const draftSrv: ProviderService = {
-      id: `my-srv-${Date.now()}`,
-      title: serviceTitle.trim(),
-      type: serviceType,
-      sector: primarySector,
-      deliverables: keyServices.trim() || cardSummary.trim() || 'Custom Scope Draft',
-      tat: deliveryMode,
-      fee: 'Custom Quotation',
-      inquiriesCount: 0,
-      status: 'DRAFT',
-      subcategory: subcategory.trim(),
-      shortSummary: cardSummary.trim(),
-      fullDescription: fullDescription.trim(),
-      keyServices: keyServices.trim(),
-      coreSkills: coreSkills.trim(),
-      marketplaceTags: marketplaceTags.trim(),
-      coverageArea,
-      deliveryMode,
-      portfolioUrl: portfolioUrl.trim(),
-      certificationRef: certificationRef.trim(),
-      governanceAgreed,
-    };
-
-    setServices((prev) => [draftSrv, ...prev]);
-    resetPublishForm();
-    setServiceModalVisible(false);
-    notify.info('Your service listing has been saved as Draft.', 'Saved as Draft');
   };
 
   const handleSubmitForApproval = () => {
@@ -250,7 +342,7 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
       governanceAgreed?: string;
     } = {};
 
-    if (!serviceTitle.trim()) {
+    if (!serviceTitle.trim() || serviceTitle.trim() === 'Untitled Draft') {
       errors.serviceTitle = 'Service Title is required *';
     }
     if (!primarySector.trim()) {
@@ -266,41 +358,140 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       notify.warning(
-        'Please complete all mandatory fields (*) and accept the governance declaration.',
+        'Please complete all mandatory fields (*) and accept the governance declaration before submitting.',
         'Validation Error'
       );
       return;
     }
 
-    const newSrv: ProviderService = {
-      id: `my-srv-${Date.now()}`,
-      title: serviceTitle.trim(),
-      type: serviceType,
-      sector: primarySector,
-      deliverables: keyServices.trim() || cardSummary.trim() || fullDescription.trim().slice(0, 120),
-      tat: deliveryMode,
-      fee: 'FIC Escrow / Quote',
-      inquiriesCount: 0,
-      status: 'UNDER_REVIEW',
-      subcategory: subcategory.trim(),
-      shortSummary: cardSummary.trim(),
-      fullDescription: fullDescription.trim(),
-      keyServices: keyServices.trim(),
-      coreSkills: coreSkills.trim(),
-      marketplaceTags: marketplaceTags.trim(),
-      coverageArea,
-      deliveryMode,
-      portfolioUrl: portfolioUrl.trim(),
-      certificationRef: certificationRef.trim(),
-      governanceAgreed: true,
-    };
+    if (editingServiceId) {
+      // Transition existing draft to UNDER_REVIEW
+      const updated = services.map((s) => {
+        if (s.id === editingServiceId) {
+          return {
+            ...s,
+            title: serviceTitle.trim(),
+            type: serviceType,
+            sector: primarySector,
+            deliverables: keyServices.trim() || cardSummary.trim() || fullDescription.trim().slice(0, 120),
+            tat: deliveryMode,
+            fee: 'FIC Escrow / Quote',
+            status: 'UNDER_REVIEW' as const,
+            subcategory: subcategory.trim(),
+            shortSummary: cardSummary.trim(),
+            fullDescription: fullDescription.trim(),
+            keyServices: keyServices.trim(),
+            coreSkills: coreSkills.trim(),
+            marketplaceTags: marketplaceTags.trim(),
+            coverageArea,
+            deliveryMode,
+            portfolioUrl: portfolioUrl.trim(),
+            certificationRef: certificationRef.trim(),
+            governanceAgreed: true,
+          };
+        }
+        return s;
+      });
+      updateAndPersistServices(updated);
+      resetPublishForm();
+      setServiceModalVisible(false);
+      notify.success(
+        'Your draft has been submitted for FIC Sub-Admin moderation. It is now Pending Approval.',
+        'Submitted for FIC Approval'
+      );
+    } else {
+      // Submit new listing directly
+      const newSrv: ProviderService = {
+        id: `my-srv-${Date.now()}`,
+        title: serviceTitle.trim(),
+        type: serviceType,
+        sector: primarySector,
+        deliverables: keyServices.trim() || cardSummary.trim() || fullDescription.trim().slice(0, 120),
+        tat: deliveryMode,
+        fee: 'FIC Escrow / Quote',
+        inquiriesCount: 0,
+        status: 'UNDER_REVIEW',
+        subcategory: subcategory.trim(),
+        shortSummary: cardSummary.trim(),
+        fullDescription: fullDescription.trim(),
+        keyServices: keyServices.trim(),
+        coreSkills: coreSkills.trim(),
+        marketplaceTags: marketplaceTags.trim(),
+        coverageArea,
+        deliveryMode,
+        portfolioUrl: portfolioUrl.trim(),
+        certificationRef: certificationRef.trim(),
+        governanceAgreed: true,
+      };
+      updateAndPersistServices([newSrv, ...services]);
+      resetPublishForm();
+      setServiceModalVisible(false);
+      notify.success(
+        'Your service listing has been submitted for FIC Sub-Admin moderation. Once approved, it will be published to the Marketplace.',
+        'Submitted for FIC Approval'
+      );
+    }
+  };
 
-    setServices((prev) => [newSrv, ...prev]);
-    resetPublishForm();
-    setServiceModalVisible(false);
+  const handleSubmitDraftDirect = (draft: ProviderService) => {
+    if (draft.status !== 'DRAFT') {
+      notify.info('This listing has already been submitted for moderation.', 'Already Submitted');
+      return;
+    }
+
+    const hasTitle = !!draft.title && draft.title.trim().length > 0 && draft.title !== 'Untitled Draft';
+    const hasSector = !!draft.sector && draft.sector.trim().length > 0;
+    const hasDesc = !!draft.fullDescription && draft.fullDescription.trim().length > 0;
+    const hasGov = !!draft.governanceAgreed;
+
+    if (!hasTitle || !hasSector || !hasDesc || !hasGov) {
+      // Incomplete mandatory fields: open form with prefilled draft and highlight missing fields
+      handleEditDraft(draft);
+      const errors: {
+        serviceTitle?: string;
+        primarySector?: string;
+        fullDescription?: string;
+        governanceAgreed?: string;
+      } = {};
+      if (!hasTitle) errors.serviceTitle = 'Service Title is required *';
+      if (!hasSector) errors.primarySector = 'Primary Sector is required *';
+      if (!hasDesc) errors.fullDescription = 'Full Description & Scope is required *';
+      if (!hasGov) errors.governanceAgreed = 'You must accept the FIC Intermediary Governance Protocol *';
+      setFormErrors(errors);
+      notify.warning(
+        'This draft is missing mandatory fields (*). Please complete them and submit.',
+        'Missing Fields'
+      );
+      return;
+    }
+
+    // Direct submit: transition from DRAFT to UNDER_REVIEW
+    const updated = services.map((s) =>
+      s.id === draft.id ? { ...s, status: 'UNDER_REVIEW' as const, fee: 'FIC Escrow / Quote', governanceAgreed: true } : s
+    );
+    updateAndPersistServices(updated);
     notify.success(
-      'Your service listing has been submitted for FIC Sub-Admin moderation. Once approved, it will be published to the Marketplace.',
-      'Submitted for FIC Approval'
+      `"${draft.title}" has been submitted for FIC Sub-Admin moderation. It is now Pending Approval.`,
+      'Submitted for Approval'
+    );
+  };
+
+  const confirmDeleteDraft = (draft: ProviderService) => {
+    Alert.alert(
+      'Delete Draft Listing',
+      `Are you sure you want to permanently delete "${draft.title || 'Untitled Draft'}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const updated = services.filter((s) => s.id !== draft.id);
+            updateAndPersistServices(updated);
+            notify.info('Draft listing deleted.', 'Deleted');
+          },
+        },
+      ]
     );
   };
 
@@ -668,6 +859,12 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
     );
   };
 
+  const publishedServices = services.filter((s) => s.status !== 'DRAFT');
+  const activeCount = services.filter((s) => s.status === 'ACTIVE').length;
+  const underReviewCount = services.filter((s) => s.status === 'UNDER_REVIEW').length;
+  const draftsList = services.filter((s) => s.status === 'DRAFT');
+  const draftsCount = draftsList.length;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StandardHeader
@@ -683,24 +880,31 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
         {/* KPI Stats Row */}
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{isMentor ? courses.length : services.length}</Text>
-            <Text style={styles.statLabel}>{isMentor ? 'Courses' : 'Listings'}</Text>
+            <Text style={styles.statNumber}>{isMentor ? courses.length : activeCount}</Text>
+            <Text style={styles.statLabel}>{isMentor ? 'Courses' : 'Approved'}</Text>
           </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statNumber, { color: '#B45309' }]}>
+              {underReviewCount}
+            </Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.statBox,
+              providerTab === 'DRAFTS' && { borderColor: '#2563EB', backgroundColor: '#EFF6FF' },
+            ]}
+            activeOpacity={0.7}
+            onPress={() => setProviderTab('DRAFTS')}
+          >
+            <Text style={[styles.statNumber, { color: '#64748B' }]}>{draftsCount}</Text>
+            <Text style={styles.statLabel}>Drafts</Text>
+          </TouchableOpacity>
           <View style={styles.statBox}>
             <Text style={[styles.statNumber, { color: '#2563EB' }]}>
               {isMentor ? consultations.length : '42'}
             </Text>
             <Text style={styles.statLabel}>{isMentor ? 'Consultations' : 'Inquiries'}</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={[styles.statNumber, { color: '#10B981' }]}>
-              {isMentor ? '24' : '23'}
-            </Text>
-            <Text style={styles.statLabel}>{isMentor ? 'Mentees' : 'Executed'}</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={[styles.statNumber, { color: '#F59E0B' }]}>4.9 ★</Text>
-            <Text style={styles.statLabel}>Rating</Text>
           </View>
         </View>
 
@@ -1007,28 +1211,47 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
             <TouchableOpacity
               style={styles.publishBtn}
               activeOpacity={0.88}
-              onPress={() => setServiceModalVisible(true)}
+              onPress={() => handleOpenCreateModal('B2B Capability')}
             >
               <Text style={styles.publishBtnText}>+ Publish New Capability / Masterclass</Text>
             </TouchableOpacity>
 
             <View style={styles.filterTabsRow}>
-              {(['ALL', 'B2B', 'MASTERCLASS'] as const).map((tab) => {
+              {(['ALL', 'B2B', 'MASTERCLASS', 'DRAFTS'] as const).map((tab) => {
                 const isActive = providerTab === tab;
+                const b2bCount = publishedServices.filter((s) => s.type === 'B2B Capability').length;
+                const masterclassCount = publishedServices.filter(
+                  (s) => s.type === 'Masterclass' || s.type === 'Teaching Service'
+                ).length;
+
                 const label =
                   tab === 'ALL'
-                    ? `All (${services.length})`
+                    ? `All (${publishedServices.length})`
                     : tab === 'B2B'
-                    ? 'B2B Capabilities'
-                    : 'Masterclasses';
+                    ? `B2B (${b2bCount})`
+                    : tab === 'MASTERCLASS'
+                    ? `Masterclasses (${masterclassCount})`
+                    : `Drafts (${draftsCount})`;
                 return (
                   <TouchableOpacity
                     key={tab}
-                    style={[styles.filterTab, isActive && styles.filterTabActive]}
+                    style={[
+                      styles.filterTab,
+                      isActive && styles.filterTabActive,
+                      tab === 'DRAFTS' && styles.draftFilterTab,
+                      tab === 'DRAFTS' && isActive && styles.draftFilterTabActive,
+                    ]}
                     activeOpacity={0.7}
                     onPress={() => setProviderTab(tab)}
                   >
-                    <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
+                    <Text
+                      style={[
+                        styles.filterTabText,
+                        isActive && styles.filterTabTextActive,
+                        tab === 'DRAFTS' && styles.draftFilterTabText,
+                        tab === 'DRAFTS' && isActive && styles.draftFilterTabTextActive,
+                      ]}
+                    >
                       {label}
                     </Text>
                   </TouchableOpacity>
@@ -1036,75 +1259,173 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
               })}
             </View>
 
-            {services.filter((s) => {
-              if (providerTab === 'B2B') return s.type === 'B2B Capability';
-              if (providerTab === 'MASTERCLASS') return s.type === 'Masterclass' || s.type === 'Teaching Service';
-              return true;
-            }).length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>📦</Text>
-                <Text style={styles.emptyTitle}>No services listed yet</Text>
-                <Text style={styles.emptySub}>
-                  Publish your B2B capabilities or masterclasses to showcase them in the chamber directory.
-                </Text>
-              </View>
-            ) : (
-              services
-                .filter((s) => {
-                  if (providerTab === 'B2B') return s.type === 'B2B Capability';
-                  if (providerTab === 'MASTERCLASS') return s.type === 'Masterclass' || s.type === 'Teaching Service';
-                  return true;
-                })
-                .map((service) => (
-                  <View key={service.id} style={styles.serviceCard}>
+            {/* TAB CONTENT: DRAFTS */}
+            {providerTab === 'DRAFTS' ? (
+              draftsList.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyIcon}>📝</Text>
+                  <Text style={styles.emptyTitle}>No draft listings</Text>
+                  <Text style={styles.emptySub}>
+                    You do not have any saved drafts. Start creating a listing and tap "Save as Draft" to work on it later.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.publishBtn, { marginTop: 14 }]}
+                    activeOpacity={0.88}
+                    onPress={() => handleOpenCreateModal('B2B Capability')}
+                  >
+                    <Text style={styles.publishBtnText}>+ Create New Service Listing</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                draftsList.map((draft) => (
+                  <View key={draft.id} style={[styles.serviceCard, styles.draftCardBorder]}>
                     <View style={styles.cardHeaderRow}>
-                      <View style={styles.typeBadge}>
-                        <Text style={styles.typeBadgeText}>{service.type}</Text>
+                      <View style={styles.draftBadge}>
+                        <Text style={styles.draftBadgeText}>📝 Draft</Text>
                       </View>
-                      <View
-                        style={[
-                          styles.activeBadge,
-                          service.status === 'UNDER_REVIEW' && styles.statusBadgeUnderReview,
-                          service.status === 'DRAFT' && styles.statusBadgeDraft,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.activeBadgeText,
-                            service.status === 'UNDER_REVIEW' && styles.statusTextUnderReview,
-                            service.status === 'DRAFT' && styles.statusTextDraft,
-                          ]}
-                        >
-                          {service.status === 'UNDER_REVIEW'
-                            ? '⏳ Under Review'
-                            : service.status === 'DRAFT'
-                            ? '📝 Draft'
-                            : '✓ FIC Approved'}
-                        </Text>
+                      <View style={styles.draftSectorPill}>
+                        <Text style={styles.draftSectorPillText}>{draft.sector}</Text>
                       </View>
                     </View>
-                    <Text style={styles.serviceTitle}>{service.title}</Text>
+
+                    <Text style={styles.serviceTitle}>{draft.title}</Text>
                     <Text style={styles.sectorText}>
-                      Sector: {service.sector}
-                      {service.subcategory ? ` • ${service.subcategory}` : ''}
+                      {draft.subcategory ? `Specialization: ${draft.subcategory}` : `Sector: ${draft.sector}`}
                     </Text>
-                    {!!service.shortSummary && (
-                      <Text style={styles.serviceShortSummary}>{service.shortSummary}</Text>
+
+                    {!!draft.shortSummary ? (
+                      <Text style={styles.serviceShortSummary}>{draft.shortSummary}</Text>
+                    ) : !!draft.fullDescription ? (
+                      <Text style={styles.serviceShortSummary} numberOfLines={2}>
+                        {draft.fullDescription}
+                      </Text>
+                    ) : (
+                      <Text style={[styles.serviceShortSummary, { fontStyle: 'italic', color: '#94A3B8' }]}>
+                        (No description added yet - tap Edit Draft to add details)
+                      </Text>
                     )}
+
                     <View style={styles.deliverablesBox}>
-                      <Text style={styles.deliverablesLabel}>Key Deliverables / Scope:</Text>
-                      <Text style={styles.deliverablesVal}>{service.deliverables}</Text>
+                      <Text style={styles.deliverablesLabel}>Scope & Deliverables Preview:</Text>
+                      <Text style={styles.deliverablesVal}>
+                        {draft.deliverables || '(Incomplete draft - tap Edit Draft to complete)'}
+                      </Text>
                     </View>
-                    <View style={styles.footerRow}>
-                      <View style={styles.tatPill}>
-                        <Text style={styles.tatText}>⏱️ {service.tat}</Text>
+
+                    <View style={styles.draftMetaRow}>
+                      <View style={styles.draftMetaPill}>
+                        <Text style={styles.draftMetaText}>📍 {draft.coverageArea || 'Pan-India'}</Text>
                       </View>
-                      <View style={styles.inquiriesPill}>
-                        <Text style={styles.inquiriesText}>📨 {service.inquiriesCount} Inquiries</Text>
+                      <View style={styles.draftMetaPill}>
+                        <Text style={styles.draftMetaText}>🚚 {draft.deliveryMode || 'Hybrid'}</Text>
                       </View>
+                    </View>
+
+                    {/* Action Buttons: Edit Draft, Submit for Approval, Delete */}
+                    <View style={styles.draftActionsRow}>
+                      <TouchableOpacity
+                        style={styles.btnEditDraft}
+                        activeOpacity={0.8}
+                        onPress={() => handleEditDraft(draft)}
+                      >
+                        <Text style={styles.btnEditDraftText}>✏️ Edit Draft</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.btnSubmitDraft}
+                        activeOpacity={0.8}
+                        onPress={() => handleSubmitDraftDirect(draft)}
+                      >
+                        <Text style={styles.btnSubmitDraftText}>🚀 Submit for Approval</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.btnDeleteDraft}
+                        activeOpacity={0.8}
+                        onPress={() => confirmDeleteDraft(draft)}
+                      >
+                        <Text style={styles.btnDeleteDraftText}>🗑️</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))
+              )
+            ) : (
+              /* TAB CONTENT: PUBLISHED LISTINGS (ALL, B2B, MASTERCLASS) */
+              publishedServices.filter((s) => {
+                if (providerTab === 'B2B') return s.type === 'B2B Capability';
+                if (providerTab === 'MASTERCLASS') return s.type === 'Masterclass' || s.type === 'Teaching Service';
+                return true;
+              }).length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyIcon}>📦</Text>
+                  <Text style={styles.emptyTitle}>No services listed yet</Text>
+                  <Text style={styles.emptySub}>
+                    Publish your B2B capabilities or masterclasses to showcase them in the chamber directory.
+                  </Text>
+                </View>
+              ) : (
+                publishedServices
+                  .filter((s) => {
+                    if (providerTab === 'B2B') return s.type === 'B2B Capability';
+                    if (providerTab === 'MASTERCLASS') return s.type === 'Masterclass' || s.type === 'Teaching Service';
+                    return true;
+                  })
+                  .map((service) => (
+                    <View key={service.id} style={styles.serviceCard}>
+                      <View style={styles.cardHeaderRow}>
+                        <View style={styles.typeBadge}>
+                          <Text style={styles.typeBadgeText}>{service.type}</Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.activeBadge,
+                            service.status === 'UNDER_REVIEW' && styles.statusBadgeUnderReview,
+                            service.status === 'REJECTED' && styles.statusBadgeRejected,
+                            service.status === 'PAUSED' && styles.statusBadgePaused,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.activeBadgeText,
+                              service.status === 'UNDER_REVIEW' && styles.statusTextUnderReview,
+                              service.status === 'REJECTED' && styles.statusTextRejected,
+                              service.status === 'PAUSED' && styles.statusTextPaused,
+                            ]}
+                          >
+                            {service.status === 'UNDER_REVIEW'
+                              ? '⏳ Pending Approval'
+                              : service.status === 'REJECTED'
+                              ? '✕ Rejected'
+                              : service.status === 'PAUSED'
+                              ? '⏸ Paused'
+                              : '✓ Approved'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.serviceTitle}>{service.title}</Text>
+                      <Text style={styles.sectorText}>
+                        Sector: {service.sector}
+                        {service.subcategory ? ` • ${service.subcategory}` : ''}
+                      </Text>
+                      {!!service.shortSummary && (
+                        <Text style={styles.serviceShortSummary}>{service.shortSummary}</Text>
+                      )}
+                      <View style={styles.deliverablesBox}>
+                        <Text style={styles.deliverablesLabel}>Key Deliverables / Scope:</Text>
+                        <Text style={styles.deliverablesVal}>{service.deliverables}</Text>
+                      </View>
+                      <View style={styles.footerRow}>
+                        <View style={styles.tatPill}>
+                          <Text style={styles.tatText}>⏱️ {service.tat}</Text>
+                        </View>
+                        <View style={styles.inquiriesPill}>
+                          <Text style={styles.inquiriesText}>📨 {service.inquiriesCount} Inquiries</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+              )
             )}
           </>
         )}
@@ -1532,15 +1853,33 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
             <View style={styles.modalHeader}>
               <View style={{ flex: 1, paddingRight: 10 }}>
                 <View style={styles.capabilityBadgeRow}>
-                  <View style={styles.capabilityPill}>
-                    <Text style={styles.capabilityPillText}>
-                      {serviceType === 'Teaching Service' ? 'MENTOR TEACHING' : 'MEMBER CAPABILITY'}
+                  <View
+                    style={[
+                      styles.capabilityPill,
+                      editingServiceId ? styles.capabilityPillEditing : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.capabilityPillText,
+                        editingServiceId ? styles.capabilityPillTextEditing : null,
+                      ]}
+                    >
+                      {editingServiceId
+                        ? 'EDITING DRAFT'
+                        : serviceType === 'Teaching Service'
+                        ? 'MENTOR TEACHING'
+                        : 'MEMBER CAPABILITY'}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.modalTitle}>Add New Service / Capability</Text>
+                <Text style={styles.modalTitle}>
+                  {editingServiceId ? 'Edit Draft Listing' : 'Add New Service / Capability'}
+                </Text>
                 <Text style={styles.modalSubtitle}>
-                  FIC Member Capability Directory & Marketplace Submission
+                  {editingServiceId
+                    ? 'Modify your saved draft or submit for FIC Sub-Admin approval'
+                    : 'FIC Member Capability Directory & Marketplace Submission'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -1842,7 +2181,9 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
                   activeOpacity={0.88}
                   onPress={handleSubmitForApproval}
                 >
-                  <Text style={styles.submitApprovalBtnText}>Submit for FIC Approval →</Text>
+                  <Text style={styles.submitApprovalBtnText}>
+                    {editingServiceId ? 'Submit Draft for FIC Approval →' : 'Submit for FIC Approval →'}
+                  </Text>
                 </TouchableOpacity>
 
                 {/* Save as Draft & Cancel Row */}
@@ -1852,7 +2193,9 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
                     activeOpacity={0.8}
                     onPress={handleSaveDraft}
                   >
-                    <Text style={styles.saveDraftBtnText}>💾 Save as Draft</Text>
+                    <Text style={styles.saveDraftBtnText}>
+                      {editingServiceId ? '💾 Save Draft Changes' : '💾 Save as Draft'}
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -3171,5 +3514,142 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontFamily: fontSansSerif,
     lineHeight: 15,
+  },
+  // --- Draft Styles & Enhancements ---
+  capabilityPillEditing: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+  },
+  capabilityPillTextEditing: {
+    color: '#B45309',
+  },
+  draftFilterTab: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+  },
+  draftFilterTabActive: {
+    backgroundColor: '#334155',
+    borderColor: '#334155',
+  },
+  draftFilterTabText: {
+    color: '#64748B',
+  },
+  draftFilterTabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  draftCardBorder: {
+    borderColor: '#CBD5E1',
+    borderWidth: 1.5,
+    backgroundColor: '#FFFFFF',
+  },
+  draftBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  draftBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  draftSectorPill: {
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  draftSectorPillText: {
+    fontSize: 9.5,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  draftMetaRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  draftMetaPill: {
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  draftMetaText: {
+    fontSize: 10,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  draftActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginTop: 4,
+  },
+  btnEditDraft: {
+    flex: 1,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  btnEditDraftText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1E40AF',
+    fontFamily: fontSansSerif,
+  },
+  btnSubmitDraft: {
+    flex: 1.3,
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  btnSubmitDraftText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: fontSansSerif,
+  },
+  btnDeleteDraft: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  btnDeleteDraftText: {
+    fontSize: 14,
+  },
+  statusBadgePaused: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+  },
+  statusTextPaused: {
+    color: '#64748B',
   },
 });

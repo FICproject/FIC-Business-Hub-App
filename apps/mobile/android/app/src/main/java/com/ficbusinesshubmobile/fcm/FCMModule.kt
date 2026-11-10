@@ -64,6 +64,39 @@ class FCMModule(private val reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun setStorageItem(key: String, value: String, promise: Promise) {
+        try {
+            val prefs = reactContext.getSharedPreferences("FIC_APP_STORAGE", Context.MODE_PRIVATE)
+            prefs.edit().putString(key, value).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("STORAGE_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun getStorageItem(key: String, promise: Promise) {
+        try {
+            val prefs = reactContext.getSharedPreferences("FIC_APP_STORAGE", Context.MODE_PRIVATE)
+            val value = prefs.getString(key, null)
+            promise.resolve(value)
+        } catch (e: Exception) {
+            promise.reject("STORAGE_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun removeStorageItem(key: String, promise: Promise) {
+        try {
+            val prefs = reactContext.getSharedPreferences("FIC_APP_STORAGE", Context.MODE_PRIVATE)
+            prefs.edit().remove(key).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("STORAGE_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
     fun requestNotificationPermission(promise: Promise) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val status = ContextCompat.checkSelfPermission(

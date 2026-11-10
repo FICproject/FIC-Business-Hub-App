@@ -113,8 +113,8 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
   const [activeMainOption, setActiveMainOption] = useState<'FUNDING' | 'INVEST'>('FUNDING');
 
   // Subview toggle: 'FORM' | 'HISTORY'
-  const [fundingSubView, setFundingSubView] = useState<'FORM' | 'HISTORY'>('FORM');
-  const [investSubView, setInvestSubView] = useState<'FORM' | 'HISTORY'>('FORM');
+  const [fundingSubView, setFundingSubView] = useState<'FORM' | 'HISTORY'>('HISTORY');
+  const [investSubView, setInvestSubView] = useState<'FORM' | 'HISTORY'>('HISTORY');
 
   // Local submissions lists
   const [fundingRequests, setFundingRequests] = useState<FundingRequestRecord[]>([]);
@@ -128,8 +128,8 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
   // FUNDING FORM STATE
   // -------------------------------------------------------------
   const [fBusinessName, setFBusinessName] = useState('');
-  const [fCategory, setFCategory] = useState(user?.category || 'Business & Entrepreneurship');
-  const [fSubcategory, setFSubcategory] = useState(user?.subcategory || 'Startup Founder');
+  const [fCategory, setFCategory] = useState('Investment & Finance');
+  const [fSubcategory, setFSubcategory] = useState('Funding Seeker');
   const [fSector, setFSector] = useState('Manufacturing');
   const [fPurpose, setFPurpose] = useState('Working Capital & Cash Flow');
   const [fFundingType, setFFundingType] = useState<'Equity' | 'Debt' | 'Grant' | 'Other'>('Equity');
@@ -312,6 +312,8 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
 
     // Reset Form Fields
     setFBusinessName('');
+    setFCategory('Investment & Finance');
+    setFSubcategory('Funding Seeker');
     setFRequiredAmount('');
     setFDescription('');
     setFCurrentRevenue('');
@@ -535,25 +537,15 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
         {/* ============================================================== */}
         {activeMainOption === 'FUNDING' && (
           <View style={styles.sectionWrapper}>
-            {/* Sub-view toggle tabs: Form vs History */}
+            {/* Sub-view access: Request History */}
             <View style={styles.subViewTabsRow}>
               <TouchableOpacity
-                style={[styles.subViewTab, fundingSubView === 'FORM' && styles.subViewTabActive]}
-                activeOpacity={0.8}
-                onPress={() => setFundingSubView('FORM')}
-              >
-                <Text style={[styles.subViewTabText, fundingSubView === 'FORM' && styles.subViewTabTextActive]}>
-                  + New Funding Request
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.subViewTab, fundingSubView === 'HISTORY' && styles.subViewTabActive]}
+                style={[styles.subViewTab, styles.subViewTabActive]}
                 activeOpacity={0.8}
                 onPress={() => setFundingSubView('HISTORY')}
               >
-                <Text style={[styles.subViewTabText, fundingSubView === 'HISTORY' && styles.subViewTabTextActive]}>
-                  Request History ({fundingRequests.length})
+                <Text style={[styles.subViewTabText, styles.subViewTabTextActive]}>
+                  {fundingSubView === 'FORM' ? '← View Request History' : 'Request History'} ({fundingRequests.length})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -562,7 +554,12 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
             {fundingSubView === 'FORM' && (
               <View style={styles.formCard}>
                 <View style={styles.formHeader}>
-                  <Text style={styles.formTitle}>Funding Request Form</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.formTitle}>Funding Request Form</Text>
+                    <TouchableOpacity onPress={() => setFundingSubView('HISTORY')}>
+                      <Text style={styles.headerBackHistoryText}>History ({fundingRequests.length})</Text>
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.formSubtitle}>
                     Private Capital Proposal for FIC Syndicate Evaluation
                   </Text>
@@ -590,20 +587,20 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                     <Text style={styles.fieldLabel}>Main Category</Text>
                     <TextInput
                       style={[styles.inputField, styles.inputFieldReadonly]}
-                      value={fCategory}
-                      onChangeText={setFCategory}
-                      placeholder="Category"
-                      placeholderTextColor="#94A3B8"
+                      value={fCategory || 'Investment & Finance'}
+                      editable={false}
+                      placeholder="Investment & Finance"
+                      placeholderTextColor="#475569"
                     />
                   </View>
                   <View style={{ flex: 1, marginLeft: 6 }}>
                     <Text style={styles.fieldLabel}>Subcategory</Text>
                     <TextInput
                       style={[styles.inputField, styles.inputFieldReadonly]}
-                      value={fSubcategory}
-                      onChangeText={setFSubcategory}
-                      placeholder="Subcategory"
-                      placeholderTextColor="#94A3B8"
+                      value={fSubcategory || 'Funding Seeker'}
+                      editable={false}
+                      placeholder="Funding Seeker"
+                      placeholderTextColor="#475569"
                     />
                   </View>
                 </View>
@@ -819,14 +816,23 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                   onChangeText={setFAdditionalInfo}
                 />
 
-                {/* 15. Submit Funding Request button */}
-                <TouchableOpacity
-                  style={styles.submitBtn}
-                  activeOpacity={0.88}
-                  onPress={handleSubmitFunding}
-                >
-                  <Text style={styles.submitBtnText}>Submit Funding Request →</Text>
-                </TouchableOpacity>
+                {/* 15. Form Action Buttons */}
+                <View style={styles.formActionButtonsRow}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    activeOpacity={0.8}
+                    onPress={() => setFundingSubView('HISTORY')}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitBtnFlex}
+                    activeOpacity={0.88}
+                    onPress={handleSubmitFunding}
+                  >
+                    <Text style={styles.submitBtnText}>Submit Funding Request →</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
@@ -916,25 +922,15 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
         {/* ============================================================== */}
         {activeMainOption === 'INVEST' && (
           <View style={styles.sectionWrapper}>
-            {/* Sub-view toggle tabs: Form vs History */}
+            {/* Sub-view access: Interest History */}
             <View style={styles.subViewTabsRow}>
               <TouchableOpacity
-                style={[styles.subViewTab, investSubView === 'FORM' && styles.subViewTabActive]}
-                activeOpacity={0.8}
-                onPress={() => setInvestSubView('FORM')}
-              >
-                <Text style={[styles.subViewTabText, investSubView === 'FORM' && styles.subViewTabTextActive]}>
-                  + New Investor Interest
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.subViewTab, investSubView === 'HISTORY' && styles.subViewTabActive]}
+                style={[styles.subViewTab, styles.subViewTabActive]}
                 activeOpacity={0.8}
                 onPress={() => setInvestSubView('HISTORY')}
               >
-                <Text style={[styles.subViewTabText, investSubView === 'HISTORY' && styles.subViewTabTextActive]}>
-                  Interest History ({investorInterests.length})
+                <Text style={[styles.subViewTabText, styles.subViewTabTextActive]}>
+                  {investSubView === 'FORM' ? '← View Interest History' : 'Interest History'} ({investorInterests.length})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -943,7 +939,12 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
             {investSubView === 'FORM' && (
               <View style={styles.formCard}>
                 <View style={styles.formHeader}>
-                  <Text style={styles.formTitle}>Investor Interest Registration</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.formTitle}>Investor Interest Registration</Text>
+                    <TouchableOpacity onPress={() => setInvestSubView('HISTORY')}>
+                      <Text style={styles.headerBackHistoryText}>History ({investorInterests.length})</Text>
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.formSubtitle}>
                     Register deployment preferences for accredited chamber deal curation
                   </Text>
@@ -1144,14 +1145,23 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                   onChangeText={setIAdditionalNotes}
                 />
 
-                {/* 13. Submit Investment Interest button */}
-                <TouchableOpacity
-                  style={styles.submitBtn}
-                  activeOpacity={0.88}
-                  onPress={handleSubmitInvest}
-                >
-                  <Text style={styles.submitBtnText}>Submit Investment Interest →</Text>
-                </TouchableOpacity>
+                {/* 13. Form Action Buttons */}
+                <View style={styles.formActionButtonsRow}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    activeOpacity={0.8}
+                    onPress={() => setInvestSubView('HISTORY')}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitBtnFlex}
+                    activeOpacity={0.88}
+                    onPress={handleSubmitInvest}
+                  >
+                    <Text style={styles.submitBtnText}>Submit Investment Interest →</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
@@ -1785,6 +1795,50 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#DC2626',
+    fontFamily: fontSansSerif,
+  },
+
+  // Form Action Buttons
+  formActionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 18,
+    marginBottom: 6,
+  },
+  cancelBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+    fontFamily: fontSansSerif,
+  },
+  submitBtnFlex: {
+    flex: 1,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  headerBackHistoryText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#2563EB',
     fontFamily: fontSansSerif,
   },
 

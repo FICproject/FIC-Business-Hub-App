@@ -374,31 +374,7 @@ export const FunctionsMenuModal: React.FC<FunctionsMenuModalProps> = ({
       subLower === 'student' ||
       (user?.category === 'Education & Knowledge' && subLower === 'student'));
 
-  const functionsList: FunctionItem[] = FUNCTIONS_LIST.map((item) => {
-    if (item.id === 'My Services') {
-      if (isStudent) {
-        return {
-          id: 'Skill Development',
-          name: 'Skill Development',
-          subtitle: 'Talent & Masterclasses',
-          bgColor: '#FDF2F8',
-          iconColor: '#DB2777',
-          iconType: 'services',
-        };
-      }
-      if (isMentor) {
-        return {
-          id: 'My Services',
-          name: 'My Services',
-          subtitle: 'Mentor Studio & Courses',
-          bgColor: '#FDF2F8',
-          iconColor: '#DB2777',
-          iconType: 'services',
-        };
-      }
-    }
-    return item;
-  });
+  const functionsList: FunctionItem[] = FUNCTIONS_LIST;
 
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;

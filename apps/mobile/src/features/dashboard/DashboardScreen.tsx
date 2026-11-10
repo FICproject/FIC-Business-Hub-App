@@ -1270,7 +1270,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionTitle}>Quick Actions</Text>
-                <TouchableOpacity onPress={() => onNavigateToModule('Sessions')}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setFunctionsMenuVisible(true)}
+                  accessibilityLabel="See All Quick Actions"
+                >
                   <Text style={styles.seeAllText}>See All</Text>
                 </TouchableOpacity>
               </View>
@@ -1566,7 +1570,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionTitle}>Quick Actions</Text>
-                <TouchableOpacity onPress={() => onNavigateToModule('Marketplace')}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setFunctionsMenuVisible(true)}
+                  accessibilityLabel="See All Quick Actions"
+                >
                   <Text style={styles.seeAllText}>See All</Text>
                 </TouchableOpacity>
               </View>

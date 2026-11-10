@@ -17,3 +17,4 @@ class BootCompletedReceiver : BroadcastReceiver() {
         private const val TAG = "BootCompletedReceiver"
     }
 }
+

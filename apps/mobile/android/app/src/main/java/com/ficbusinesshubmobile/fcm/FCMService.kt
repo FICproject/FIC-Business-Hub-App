@@ -27,6 +27,23 @@ class FCMService : FirebaseMessagingService() {
         var title = remoteMessage.notification?.title ?: data["title"] ?: "FIC Business Hub"
         var body = remoteMessage.notification?.body ?: data["body"] ?: "You have a new activity update."
 
+        val type = data["type"] ?: ""
+        if (type == "MEMBERSHIP_RENEWAL") {
+            val notifId = data["notificationId"] ?: "mem_fcm_${System.currentTimeMillis()}"
+            val remainingDays = data["remainingDays"] ?: "soon"
+            val expiryDate = data["expiryDate"] ?: ""
+            val planName = data["planName"] ?: "FIC Enterprise Membership"
+            MembershipNotificationScheduler.saveDeliveredNotification(
+                applicationContext,
+                notifId,
+                title,
+                body,
+                remainingDays,
+                expiryDate,
+                planName
+            )
+        }
+
         // If the app is active in the foreground, notify JS
         val isForeground = FCMModule.isAppInForeground()
         if (isForeground) {

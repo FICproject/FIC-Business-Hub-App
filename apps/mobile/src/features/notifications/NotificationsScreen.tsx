@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 import { NotificationItem } from '../../types';
 import { StandardHeader } from '../../components/common/StandardHeader';
 import { useStudentMentor } from '../../state/StudentMentorContext';
+import { membershipNotificationService } from '../../services/membershipNotificationService';
+import { FCMService } from '../../services/FCMService';
 
 const fontSansSerif = Platform.OS === 'android' ? 'sans-serif' : 'System';
 
@@ -27,28 +29,105 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   onNavigateToModule,
 }) => {
   const { notifications: dynamicNotifs } = useStudentMentor();
+  const [membershipNotifs, setMembershipNotifs] = useState<NotificationItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
 
-  const combinedNotifications: NotificationItem[] = [
-    ...dynamicNotifs.map((dn) => ({
+  // Load stored membership renewal notifications from persistent storage
+  const loadMembershipNotifications = useCallback(async () => {
+    try {
+      const stored = await membershipNotificationService.getStoredNotifications();
+      const mapped: NotificationItem[] = stored.map((item) => ({
+        id: item.id,
+        title: item.title,
+        body: item.body,
+        timestamp: item.timestamp,
+        read: item.read,
+        type: 'MEMBERSHIP',
+        expiryDate: item.expiryDate,
+        remainingDays: item.remainingDays,
+        action: item.action || 'Renew Membership',
+      }));
+      setMembershipNotifs(mapped);
+    } catch (e) {
+      console.warn('Error loading membership notifications:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMembershipNotifications();
+
+    // Listen for live foreground notifications
+    const unsubscribe = FCMService.onMessageReceived(() => {
+      loadMembershipNotifications();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [loadMembershipNotifications]);
+
+  // Merge and deduplicate by id
+  const combinedMap = new Map<string, NotificationItem>();
+
+  // 1. Membership Renewal Notifications
+  membershipNotifs.forEach((n) => combinedMap.set(n.id, n));
+
+  // 2. Dynamic Notifications from StudentMentor
+  dynamicNotifs.forEach((dn) => {
+    combinedMap.set(dn.id, {
       id: dn.id,
       title: dn.title,
       body: dn.body,
       timestamp: dn.timestamp,
       read: dn.read,
       type: (dn.type === 'CONSULTATION' ? 'MEETING' : dn.type === 'COURSE' ? 'ADVISORY' : dn.type === 'CHAMBER' ? 'REQUEST' : 'KYC') as any,
-    })),
-    ...notifications,
-  ];
+    });
+  });
 
-  const markAllAsRead = () => {
+  // 3. Any additional notifications
+  notifications.forEach((n) => {
+    if (!combinedMap.has(n.id)) combinedMap.set(n.id, n);
+  });
+
+  const combinedNotifications: NotificationItem[] = Array.from(combinedMap.values());
+
+  const markAllAsRead = async () => {
+    await membershipNotificationService.markAllAsRead();
+    setMembershipNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const handleCardPress = async (item: NotificationItem) => {
+    // Mark item read
+    if (item.type === 'MEMBERSHIP') {
+      await membershipNotificationService.markAsRead(item.id);
+      setMembershipNotifs((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
+      if (onNavigateToModule) {
+        onNavigateToModule('Membership & Payments');
+      }
+    } else {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
+      );
+      if (item.type === 'MEETING' && onNavigateToModule) {
+        onNavigateToModule('Meetings');
+      } else if (item.type === 'REQUEST' && onNavigateToModule) {
+        onNavigateToModule('My Requests');
+      }
+    }
   };
 
   const unreadCount = combinedNotifications.filter((n) => !n.read).length;
 
   const getTypeBadge = (type: NotificationItem['type']) => {
     switch (type) {
+      case 'MEMBERSHIP':
+        return (
+          <View style={[styles.badgePill, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+            <Text style={{ fontSize: 11, marginRight: 4 }}>👑</Text>
+            <Text style={[styles.badgeText, { color: '#B45309' }]}>Membership Renewal</Text>
+          </View>
+        );
       case 'KYC':
         return (
           <View style={[styles.badgePill, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}>
@@ -113,28 +192,23 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       >
         {combinedNotifications.map((item) => {
           const isUnread = !item.read;
+          const isMembership = item.type === 'MEMBERSHIP';
+
           return (
             <TouchableOpacity
               key={item.id}
-              style={[styles.notifCard, isUnread && styles.notifCardUnread]}
+              style={[
+                styles.notifCard,
+                isUnread && styles.notifCardUnread,
+                isMembership && isUnread && styles.notifCardMembershipUnread,
+              ]}
               activeOpacity={0.85}
-              onPress={() => {
-                // Mark single item read on tap
-                setNotifications((prev) =>
-                  prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
-                );
-                // Optional navigation
-                if (item.type === 'MEETING' && onNavigateToModule) {
-                  onNavigateToModule('Meetings');
-                } else if (item.type === 'REQUEST' && onNavigateToModule) {
-                  onNavigateToModule('My Requests');
-                }
-              }}
+              onPress={() => handleCardPress(item)}
             >
               <View style={styles.cardHeaderRow}>
                 {getTypeBadge(item.type)}
                 <View style={styles.timeRow}>
-                  {isUnread && <View style={styles.unreadBlueDot} />}
+                  {isUnread && <View style={[styles.unreadBlueDot, isMembership && { backgroundColor: '#D97706' }]} />}
                   <Text style={styles.timeText}>{item.timestamp}</Text>
                 </View>
               </View>
@@ -143,6 +217,25 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 {item.title}
               </Text>
               <Text style={styles.bodyText}>{item.body}</Text>
+
+              {/* Special Action Button for Membership Renewal */}
+              {isMembership && (
+                <View style={styles.membershipActionRow}>
+                  <TouchableOpacity
+                    style={styles.renewActionBtn}
+                    activeOpacity={0.8}
+                    onPress={() => handleCardPress(item)}
+                  >
+                    <Text style={styles.renewActionBtnText}>Renew Membership</Text>
+                    <Text style={{ color: '#FFFFFF', fontSize: 13, marginLeft: 4 }}>›</Text>
+                  </TouchableOpacity>
+                  {item.remainingDays && (
+                    <Text style={styles.remainingDaysText}>
+                      Expires in {item.remainingDays}
+                    </Text>
+                  )}
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -242,6 +335,39 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3.5,
     borderLeftColor: '#2563EB',
     borderColor: '#E2E8F0',
+  },
+  notifCardMembershipUnread: {
+    borderLeftColor: '#D97706',
+    backgroundColor: '#FFFDF7',
+  },
+  membershipActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  renewActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  renewActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: fontSansSerif,
+  },
+  remainingDaysText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#B45309',
+    fontFamily: fontSansSerif,
   },
   cardHeaderRow: {
     flexDirection: 'row',

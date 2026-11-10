@@ -129,6 +129,9 @@ export interface NotificationItem {
   body: string;
   timestamp: string;
   read: boolean;
-  type: 'KYC' | 'MEETING' | 'REQUEST' | 'ADVISORY';
+  type: 'KYC' | 'MEETING' | 'REQUEST' | 'ADVISORY' | 'MEMBERSHIP';
+  expiryDate?: string;
+  remainingDays?: string;
+  action?: string;
 }
 

@@ -2,6 +2,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -87,5 +89,24 @@
               <action android:name="com.google.firebase.MESSAGING_EVENT" />
           </intent-filter>
       </service>
+
+      <!-- Membership Expiry Scheduled Notification Receiver -->
+      <receiver
+          android:name=".fcm.MembershipNotificationReceiver"
+          android:exported="false">
+          <intent-filter>
+              <action android:name="com.ficbusinesshubmobile.ACTION_MEMBERSHIP_EXPIRY_ALARM" />
+          </intent-filter>
+      </receiver>
+
+      <!-- Reschedule Membership Reminders after device reboot -->
+      <receiver
+          android:name=".fcm.BootCompletedReceiver"
+          android:exported="true">
+          <intent-filter>
+              <action android:name="android.intent.action.BOOT_COMPLETED" />
+              <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+          </intent-filter>
+      </receiver>
     </application>
 </manifest>

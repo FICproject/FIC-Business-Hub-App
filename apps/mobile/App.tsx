@@ -23,6 +23,8 @@ import { SkillDevelopmentScreen } from './src/features/skill-development/SkillDe
 import { MyServicesScreen } from './src/features/my-services/MyServicesScreen';
 import { NotificationsScreen } from './src/features/notifications/NotificationsScreen';
 import { ProfileScreen } from './src/features/profile/ProfileScreen';
+import { MembershipPaymentsScreen } from './src/features/membership/MembershipPaymentsScreen';
+import { membershipNotificationService } from './src/services/membershipNotificationService';
 import { BottomNavBar, TabKey } from './src/navigation/BottomNavBar';
 import { FCMService } from './src/services/FCMService';
 
@@ -219,6 +221,11 @@ const MobileAppContent: React.FC = () => {
       case 'Profile':
         navigateTo('Profile', null);
         break;
+      case 'Membership & Payments':
+      case 'Membership':
+      case 'Payments':
+        navigateTo(currentTab, 'Membership & Payments');
+        break;
       case 'Sessions':
         navigateTo(isMentor ? 'Sessions' : 'Connections', null);
         break;
@@ -246,6 +253,9 @@ const MobileAppContent: React.FC = () => {
         console.log('[FCM] Active Device Token:', token);
       }
     });
+
+    // 2b. Initialize Automatic Membership Expiry Reminders Schedule
+    membershipNotificationService.scheduleReminders('05 Nov 2027', 'FIC Enterprise Membership');
 
     // 3. Listen for token rotations
     const unsubscribeTokenRefresh = FCMService.onTokenRefresh((newToken) => {
@@ -435,6 +445,14 @@ const MobileAppContent: React.FC = () => {
         case 'Skill Development':
           return (
             <SkillDevelopmentScreen
+              onBack={() => setActiveSubModule(null)}
+              onNavigateToModule={handleNavigateToModule}
+            />
+          );
+        case 'Membership & Payments':
+        case 'Membership':
+          return (
+            <MembershipPaymentsScreen
               onBack={() => setActiveSubModule(null)}
               onNavigateToModule={handleNavigateToModule}
             />

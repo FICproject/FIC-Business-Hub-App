@@ -97,6 +97,46 @@ class FCMModule(private val reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun scheduleMembershipReminders(expiryDate: String, planName: String, promise: Promise) {
+        try {
+            val resultJson = MembershipNotificationScheduler.scheduleReminders(reactContext, expiryDate, planName)
+            promise.resolve(resultJson)
+        } catch (e: Exception) {
+            promise.reject("SCHEDULER_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun cancelMembershipReminders(promise: Promise) {
+        try {
+            val success = MembershipNotificationScheduler.cancelAllReminders(reactContext)
+            promise.resolve(success)
+        } catch (e: Exception) {
+            promise.reject("SCHEDULER_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun getMembershipRemindersStatus(promise: Promise) {
+        try {
+            val statusJson = MembershipNotificationScheduler.getScheduleStatus(reactContext)
+            promise.resolve(statusJson)
+        } catch (e: Exception) {
+            promise.reject("SCHEDULER_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun triggerTestMembershipReminder(remainingDays: String, promise: Promise) {
+        try {
+            val notifId = MembershipNotificationScheduler.triggerImmediateTestReminder(reactContext, remainingDays)
+            promise.resolve(notifId)
+        } catch (e: Exception) {
+            promise.reject("TEST_REMINDER_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
     fun requestNotificationPermission(promise: Promise) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val status = ContextCompat.checkSelfPermission(

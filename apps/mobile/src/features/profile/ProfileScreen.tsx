@@ -1274,6 +1274,31 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, onBack, 
               FIC Intermediary Chamber
             </Text>
           </View>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#EFF6FF',
+              borderColor: '#BFDBFE',
+              borderWidth: 1,
+              borderRadius: 8,
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              marginTop: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+            activeOpacity={0.8}
+            onPress={() => onNavigateToModule && onNavigateToModule('Membership & Payments')}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 14 }}>👑</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#1D4ED8', fontFamily: fontSansSerif }}>
+                Manage Plan & Automatic Renewals
+              </Text>
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#1D4ED8' }}>›</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ============================================================== */}

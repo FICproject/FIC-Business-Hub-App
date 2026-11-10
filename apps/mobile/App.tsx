@@ -38,7 +38,29 @@ interface NavState {
 const MobileAppContent: React.FC = () => {
   const { isAuthenticated, logout, login, user } = useAuth();
   const { notifications } = useStudentMentor();
-  const unreadNotifCount = notifications.filter((n) => !n.read).length;
+  const [membershipUnreadCount, setMembershipUnreadCount] = useState<number>(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const syncCount = async () => {
+      try {
+        const count = await membershipNotificationService.getUnreadCount();
+        if (isMounted) setMembershipUnreadCount(count);
+      } catch {
+        if (isMounted) setMembershipUnreadCount(0);
+      }
+    };
+    syncCount();
+    const unsubService = membershipNotificationService.subscribe(syncCount);
+    const unsubFCM = FCMService.onMessageReceived(() => syncCount());
+    return () => {
+      isMounted = false;
+      unsubService();
+      unsubFCM();
+    };
+  }, []);
+
+  const unreadNotifCount = notifications.filter((n) => !n.read).length + membershipUnreadCount;
 
   const subLower = user?.subcategory?.toLowerCase() || '';
   const isMentor =

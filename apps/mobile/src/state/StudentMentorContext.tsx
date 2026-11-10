@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { notify } from '../components/common/NotificationContext';
+import { storageService } from '../services/storageService';
 
 export type ConsultationStatus =
   | 'PENDING'
@@ -110,6 +111,8 @@ interface StudentMentorContextType {
   consultations: ConsultationBooking[];
   courses: SharedMasterclass[];
   notifications: InAppNotification[];
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
   chamberRequests: ChamberServiceRequest[];
 
   // Chamber Service Requests
@@ -229,6 +232,40 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [chamberRequests, setChamberRequests] = useState<ChamberServiceRequest[]>(INITIAL_CHAMBER_REQUESTS);
 
+  const storageKey = `FIC_INAPP_NOTIFICATIONS_${user?.id || 'guest'}`;
+
+  // Load stored notifications for active user
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const raw = await storageService.getItem(storageKey);
+        if (raw && isMounted) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setNotifications(parsed);
+          }
+        }
+      } catch (err) {
+        console.warn('[StudentMentorContext] Error loading notifications:', err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [storageKey]);
+
+  const persistNotifications = useCallback(
+    async (newList: InAppNotification[]) => {
+      try {
+        await storageService.setItem(storageKey, JSON.stringify(newList));
+      } catch (err) {
+        console.warn('[StudentMentorContext] Error persisting notifications:', err);
+      }
+    },
+    [storageKey]
+  );
+
   // Add internal in-app notification
   const addNotification = useCallback((targetUserId: string, title: string, body: string, type: InAppNotification['type'] = 'CONSULTATION') => {
     const newNotif: InAppNotification = {
@@ -240,8 +277,33 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
       timestamp: 'Just now',
       read: false,
     };
-    setNotifications((prev) => [newNotif, ...prev]);
-  }, []);
+    setNotifications((prev) => {
+      const updated = [newNotif, ...prev];
+      persistNotifications(updated);
+      return updated;
+    });
+  }, [persistNotifications]);
+
+  // Mark single notification as read
+  const markNotificationAsRead = useCallback(
+    (id: string) => {
+      setNotifications((prev) => {
+        const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+        persistNotifications(updated);
+        return updated;
+      });
+    },
+    [persistNotifications]
+  );
+
+  // Mark all notifications as read
+  const markAllNotificationsAsRead = useCallback(() => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, read: true }));
+      persistNotifications(updated);
+      return updated;
+    });
+  }, [persistNotifications]);
 
   // Chamber Service Request lodging (Marketplace, Incubation, Scaling, Investment)
   const addChamberRequest = useCallback(
@@ -694,6 +756,8 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
         consultations,
         courses,
         notifications,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
         chamberRequests,
         addChamberRequest,
         bookConsultation,

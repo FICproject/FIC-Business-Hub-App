@@ -44,7 +44,44 @@ const STORAGE_KEY_MEMBERSHIP_NOTIFS = 'FIC_MEMBERSHIP_NOTIFICATIONS';
 const STORAGE_KEY_MEMBERSHIP_EXPIRY = 'FIC_MEMBERSHIP_EXPIRY_DATE';
 const STORAGE_KEY_MEMBERSHIP_PLAN = 'FIC_MEMBERSHIP_PLAN';
 
+type NotificationChangeListener = () => void;
+const changeListeners = new Set<NotificationChangeListener>();
+
 export const membershipNotificationService = {
+  /**
+   * Subscribe to notification updates (read state changes, new notifications, etc.)
+   */
+  subscribe(listener: NotificationChangeListener): () => void {
+    changeListeners.add(listener);
+    return () => {
+      changeListeners.delete(listener);
+    };
+  },
+
+  /**
+   * Notify all subscribers when notification data changes
+   */
+  notifyChange(): void {
+    changeListeners.forEach((fn) => {
+      try {
+        fn();
+      } catch (err) {
+        console.warn('[MembershipService] Error in change listener:', err);
+      }
+    });
+  },
+
+  /**
+   * Retrieves current unread membership notification count.
+   */
+  async getUnreadCount(): Promise<number> {
+    try {
+      const list = await this.getStoredNotifications();
+      return list.filter((n) => !n.read).length;
+    } catch {
+      return 0;
+    }
+  },
   /**
    * Schedules the 10 automatic membership expiry reminders.
    * Schedule:
@@ -121,7 +158,9 @@ export const membershipNotificationService = {
   async triggerTestReminder(remainingDays: string = '2 days'): Promise<string | null> {
     try {
       if (Platform.OS === 'android' && FCMModule?.triggerTestMembershipReminder) {
-        return await FCMModule.triggerTestMembershipReminder(remainingDays);
+        const res = await FCMModule.triggerTestMembershipReminder(remainingDays);
+        this.notifyChange();
+        return res;
       }
       return null;
     } catch (e) {
@@ -153,6 +192,7 @@ export const membershipNotificationService = {
       const list = await this.getStoredNotifications();
       const updated = list.map((item) => (item.id === id ? { ...item, read: true } : item));
       await storageService.setItem(STORAGE_KEY_MEMBERSHIP_NOTIFS, JSON.stringify(updated));
+      this.notifyChange();
       return updated;
     } catch (e) {
       console.warn('[MembershipService] Error marking as read:', e);
@@ -168,6 +208,7 @@ export const membershipNotificationService = {
       const list = await this.getStoredNotifications();
       const updated = list.map((item) => ({ ...item, read: true }));
       await storageService.setItem(STORAGE_KEY_MEMBERSHIP_NOTIFS, JSON.stringify(updated));
+      this.notifyChange();
       return updated;
     } catch (e) {
       console.warn('[MembershipService] Error marking all as read:', e);

@@ -28,7 +28,11 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   onBack,
   onNavigateToModule,
 }) => {
-  const { notifications: dynamicNotifs } = useStudentMentor();
+  const {
+    notifications: dynamicNotifs,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+  } = useStudentMentor();
   const [membershipNotifs, setMembershipNotifs] = useState<NotificationItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
 
@@ -57,12 +61,17 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     loadMembershipNotifications();
 
     // Listen for live foreground notifications
-    const unsubscribe = FCMService.onMessageReceived(() => {
+    const unsubscribeFCM = FCMService.onMessageReceived(() => {
+      loadMembershipNotifications();
+    });
+
+    const unsubscribeService = membershipNotificationService.subscribe(() => {
       loadMembershipNotifications();
     });
 
     return () => {
-      unsubscribe();
+      unsubscribeFCM();
+      unsubscribeService();
     };
   }, [loadMembershipNotifications]);
 
@@ -93,6 +102,9 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
   const markAllAsRead = async () => {
     await membershipNotificationService.markAllAsRead();
+    if (markAllNotificationsAsRead) {
+      markAllNotificationsAsRead();
+    }
     setMembershipNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
@@ -106,6 +118,9 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         onNavigateToModule('Membership & Payments');
       }
     } else {
+      if (markNotificationAsRead) {
+        markNotificationAsRead(item.id);
+      }
       setNotifications((prev) =>
         prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
       );

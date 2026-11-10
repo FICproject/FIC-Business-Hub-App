@@ -19,6 +19,8 @@ import { useWalletReferral } from '../../state/WalletReferralContext';
 import { FunctionsMenuModal } from '../../components/common/FunctionsMenuModal';
 import { notify } from '../../components/common/NotificationContext';
 import { launchAssignedMeeting, MeetingPlatform } from '../../utils/meetingLauncher';
+import { membershipNotificationService } from '../../services/membershipNotificationService';
+import { FCMService } from '../../services/FCMService';
 
 const { width } = Dimensions.get('window');
 const SCREEN_WIDTH = width;
@@ -966,8 +968,53 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onNavigateToModule,
 }) => {
   const { user } = useAuth();
-  const { courses, chamberRequests, mentors, getMentorIncomingRequests, getStudentBookings } = useStudentMentor();
+  const {
+    courses,
+    chamberRequests,
+    mentors,
+    getMentorIncomingRequests,
+    getStudentBookings,
+    notifications,
+  } = useStudentMentor();
   const { referralStats } = useWalletReferral();
+
+  // Notification red dot state: synchronized with persistent storage & real-time events
+  const [membershipUnreadCount, setMembershipUnreadCount] = useState<number>(0);
+  const [isNotifLoaded, setIsNotifLoaded] = useState<boolean>(false);
+
+  const fetchMembershipUnread = useCallback(async () => {
+    try {
+      const count = await membershipNotificationService.getUnreadCount();
+      setMembershipUnreadCount(count);
+      setIsNotifLoaded(true);
+    } catch (err) {
+      console.warn('[Dashboard] Error fetching unread count:', err);
+      setMembershipUnreadCount(0);
+      setIsNotifLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMembershipUnread();
+
+    const unsubscribeService = membershipNotificationService.subscribe(fetchMembershipUnread);
+    const unsubscribeFCM = FCMService.onMessageReceived(() => {
+      fetchMembershipUnread();
+    });
+
+    return () => {
+      unsubscribeService();
+      unsubscribeFCM();
+    };
+  }, [fetchMembershipUnread, user?.id]);
+
+  // Dynamic unread count for current user
+  const dynamicUnreadCount = (notifications || []).filter(
+    (n) => !n.read && (!n.targetUserId || !user?.id || n.targetUserId === user?.id || n.targetUserId === 'all')
+  ).length;
+
+  // Real-time total unread count: strictly 0 while loading/errored to prevent false indicator
+  const totalUnreadCount = isNotifLoaded ? dynamicUnreadCount + membershipUnreadCount : 0;
   const rawName = user?.fullName;
   const displayName = rawName
     ? (rawName.includes('(') ? rawName.split('(')[0].trim() : rawName)
@@ -1133,10 +1180,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             style={styles.bellButton}
             activeOpacity={0.7}
             onPress={() => onNavigateToModule('Notifications')}
-            accessibilityLabel="Notifications"
+            accessibilityLabel={`Notifications${totalUnreadCount > 0 ? `, ${totalUnreadCount} unread` : ''}`}
           >
             <BellVectorIcon color="#475569" />
-            <View style={styles.notificationDot} />
+            {totalUnreadCount > 0 && <View style={styles.notificationDot} />}
           </TouchableOpacity>
         </View>
       </View>

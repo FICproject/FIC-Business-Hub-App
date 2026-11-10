@@ -19,8 +19,62 @@ const defaultMockUser: UserProfile = {
   membershipPlan: 'FIC_ENTERPRISE',
   membershipStatus: 'ACTIVE',
   kycStatus: 'APPROVED',
-  category: 'Business & Entrepreneurship',
-  subcategory: 'Business Member',
+  category: 'Technology & Digital',
+  subcategory: 'Software Development',
+};
+
+// Persistent registry of registered members to maintain profile integrity across logout/login
+const registeredProfilesDB: Record<string, Partial<UserProfile>> = {
+  'member@fic.org': {
+    fullName: 'Member',
+    email: 'member@fic.org',
+    category: 'Technology & Digital',
+    subcategory: 'Software Development',
+    role: 'MSME',
+  },
+  'dr.sundaram@mentor.fic.org': {
+    fullName: 'Dr. K. S. Sundaram',
+    email: 'dr.sundaram@mentor.fic.org',
+    category: 'Education & Knowledge',
+    subcategory: 'Mentor / Trainer',
+    role: 'MENTOR',
+  },
+  'dr.anand@mentor.fic.org': {
+    fullName: 'Dr. Anand Kumar',
+    email: 'dr.anand@mentor.fic.org',
+    category: 'Education & Knowledge',
+    subcategory: 'Teacher / Professor',
+    role: 'MENTOR',
+  },
+  'prof.anand@mentor.fic.org': {
+    fullName: 'Prof. Anand Kumar',
+    email: 'prof.anand@mentor.fic.org',
+    category: 'Education & Knowledge',
+    subcategory: 'Teacher / Professor',
+    role: 'MENTOR',
+  },
+  'karthik.raja@student.fic.org': {
+    fullName: 'Karthik Raja',
+    email: 'karthik.raja@student.fic.org',
+    category: 'Education & Knowledge',
+    subcategory: 'Student',
+    role: 'STUDENT',
+  },
+  'priya.sundaram@student.fic.org': {
+    fullName: 'Priya Sundaram',
+    email: 'priya.sundaram@student.fic.org',
+    category: 'Education & Knowledge',
+    subcategory: 'Student',
+    role: 'STUDENT',
+  },
+};
+
+let lastRegisteredProfile: Partial<UserProfile> | null = {
+  fullName: 'Member',
+  email: 'member@fic.org',
+  category: 'Technology & Digital',
+  subcategory: 'Software Development',
+  role: 'MSME',
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,19 +83,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(null);
 
   const login = (role: MemberRole = 'MSME', customData?: Partial<UserProfile>) => {
+    const emailKey = (customData?.email || '').trim().toLowerCase();
+    
+    // Save registration details to registry if provided
+    if (customData?.category && customData?.subcategory) {
+      if (emailKey) {
+        registeredProfilesDB[emailKey] = { ...customData, role };
+      }
+      lastRegisteredProfile = { ...customData, role };
+    }
+
+    // Retrieve existing registration details if available
+    const savedProfile = (emailKey && registeredProfilesDB[emailKey]) || lastRegisteredProfile;
+
+    const resolvedCategory =
+      customData?.category ||
+      savedProfile?.category ||
+      (role === 'STUDENT' || role === 'MENTOR' ? 'Education & Knowledge' : defaultMockUser.category);
+
+    const resolvedSubcategory =
+      customData?.subcategory ||
+      (customData as any)?.subCategory ||
+      savedProfile?.subcategory ||
+      (role === 'STUDENT' ? 'Student' : role === 'MENTOR' ? 'Mentor' : defaultMockUser.subcategory);
+
     setUser({
       ...defaultMockUser,
       role,
-      fullName:
-        customData?.fullName || 'Member',
-      category:
-        customData?.category ||
-        (role === 'STUDENT' || role === 'MENTOR'
-          ? 'Education & Knowledge'
-          : defaultMockUser.category),
-      subcategory:
-        customData?.subcategory ||
-        (role === 'STUDENT' ? 'Student' : role === 'MENTOR' ? 'Mentor' : defaultMockUser.subcategory),
+      fullName: customData?.fullName || savedProfile?.fullName || 'Member',
+      category: resolvedCategory,
+      subcategory: resolvedSubcategory,
       ...customData,
     });
   };

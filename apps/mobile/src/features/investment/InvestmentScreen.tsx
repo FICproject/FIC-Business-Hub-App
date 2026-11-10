@@ -53,6 +53,8 @@ export interface InvestorInterestRecord {
   id: string;
   trackingNumber: string;
   investorName: string;
+  category?: string;
+  subcategory?: string;
   investorType: string;
   preferredSectors: string[];
   investmentRange: string;
@@ -125,11 +127,16 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
   const [selectedInvestRecord, setSelectedInvestRecord] = useState<InvestorInterestRecord | null>(null);
 
   // -------------------------------------------------------------
+  // MEMBER REGISTRATION METADATA (Single Source of Truth)
+  // -------------------------------------------------------------
+  const memberCategory = user?.category?.trim() || 'Not Available';
+  const memberSubcategory =
+    (user?.subcategory || (user as any)?.subCategory)?.trim() || 'Not Available';
+
+  // -------------------------------------------------------------
   // FUNDING FORM STATE
   // -------------------------------------------------------------
   const [fBusinessName, setFBusinessName] = useState('');
-  const [fCategory, setFCategory] = useState('Investment & Finance');
-  const [fSubcategory, setFSubcategory] = useState('Funding Seeker');
   const [fSector, setFSector] = useState('Manufacturing');
   const [fPurpose, setFPurpose] = useState('Working Capital & Cash Flow');
   const [fFundingType, setFFundingType] = useState<'Equity' | 'Debt' | 'Grant' | 'Other'>('Equity');
@@ -272,8 +279,8 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
       id: `fnd-${Date.now()}`,
       trackingNumber,
       businessName: fBusinessName.trim(),
-      category: fCategory.trim(),
-      subcategory: fSubcategory.trim(),
+      category: memberCategory,
+      subcategory: memberSubcategory,
       sector: fSector,
       fundingPurpose: fPurpose,
       fundingType: fFundingType,
@@ -312,8 +319,6 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
 
     // Reset Form Fields
     setFBusinessName('');
-    setFCategory('Investment & Finance');
-    setFSubcategory('Funding Seeker');
     setFRequiredAmount('');
     setFDescription('');
     setFCurrentRevenue('');
@@ -378,6 +383,8 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
       id: `inv-${Date.now()}`,
       trackingNumber,
       investorName: iInvestorName.trim(),
+      category: memberCategory,
+      subcategory: memberSubcategory,
       investorType: iInvestorType,
       preferredSectors: iPreferredSectors,
       investmentRange: iInvestmentRange.trim(),
@@ -581,26 +588,26 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                 />
                 <FieldError error={errFBusinessName} />
 
-                {/* 2. Main Category and Subcategory */}
+                {/* 2. Main Category and Subcategory (Dynamic from Member Registration) */}
                 <View style={styles.rowTwoCols}>
                   <View style={{ flex: 1, marginRight: 6 }}>
                     <Text style={styles.fieldLabel}>Main Category</Text>
                     <TextInput
                       style={[styles.inputField, styles.inputFieldReadonly]}
-                      value={fCategory || 'Investment & Finance'}
+                      value={memberCategory}
                       editable={false}
-                      placeholder="Investment & Finance"
-                      placeholderTextColor="#475569"
+                      placeholder="Not Available"
+                      placeholderTextColor="#94A3B8"
                     />
                   </View>
                   <View style={{ flex: 1, marginLeft: 6 }}>
                     <Text style={styles.fieldLabel}>Subcategory</Text>
                     <TextInput
                       style={[styles.inputField, styles.inputFieldReadonly]}
-                      value={fSubcategory || 'Funding Seeker'}
+                      value={memberSubcategory}
                       editable={false}
-                      placeholder="Funding Seeker"
-                      placeholderTextColor="#475569"
+                      placeholder="Not Available"
+                      placeholderTextColor="#94A3B8"
                     />
                   </View>
                 </View>
@@ -966,7 +973,31 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                 />
                 <FieldError error={errIInvestorName} />
 
-                {/* 2. Investor Type */}
+                {/* 2. Main Category and Subcategory (Dynamic from Member Registration) */}
+                <View style={styles.rowTwoCols}>
+                  <View style={{ flex: 1, marginRight: 6 }}>
+                    <Text style={styles.fieldLabel}>Main Category</Text>
+                    <TextInput
+                      style={[styles.inputField, styles.inputFieldReadonly]}
+                      value={memberCategory}
+                      editable={false}
+                      placeholder="Not Available"
+                      placeholderTextColor="#94A3B8"
+                    />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 6 }}>
+                    <Text style={styles.fieldLabel}>Subcategory</Text>
+                    <TextInput
+                      style={[styles.inputField, styles.inputFieldReadonly]}
+                      value={memberSubcategory}
+                      editable={false}
+                      placeholder="Not Available"
+                      placeholderTextColor="#94A3B8"
+                    />
+                  </View>
+                </View>
+
+                {/* 3. Investor Type */}
                 <Text style={styles.fieldLabel}>
                   Investor Type <Text style={styles.requiredAsterisk}>*</Text>
                 </Text>
@@ -1281,6 +1312,16 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
               </View>
 
               <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Main Category:</Text>
+                <Text style={styles.modalDetailVal}>{selectedFundingRecord?.category || 'Not Available'}</Text>
+              </View>
+
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Subcategory:</Text>
+                <Text style={styles.modalDetailVal}>{selectedFundingRecord?.subcategory || 'Not Available'}</Text>
+              </View>
+
+              <View style={styles.modalDetailRow}>
                 <Text style={styles.modalDetailLabel}>Industry / Sector:</Text>
                 <Text style={styles.modalDetailVal}>{selectedFundingRecord?.sector}</Text>
               </View>
@@ -1373,6 +1414,16 @@ export const InvestmentScreen: React.FC<InvestmentScreenProps> = ({
                 <View style={styles.statusSentPill}>
                   <Text style={styles.statusSentText}>● {selectedInvestRecord?.status}</Text>
                 </View>
+              </View>
+
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Main Category:</Text>
+                <Text style={styles.modalDetailVal}>{selectedInvestRecord?.category || 'Not Available'}</Text>
+              </View>
+
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Subcategory:</Text>
+                <Text style={styles.modalDetailVal}>{selectedInvestRecord?.subcategory || 'Not Available'}</Text>
               </View>
 
               <View style={styles.modalDetailRow}>

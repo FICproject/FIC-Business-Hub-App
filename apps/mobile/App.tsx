@@ -425,8 +425,9 @@ const MobileAppContent: React.FC = () => {
             const role = isMentorUser ? 'MENTOR' : isStudentUser ? 'STUDENT' : ((userData?.role as any) || 'MSME');
             login(role, {
               fullName: userData?.fullName || 'Member',
-              category: userData?.category || 'Education & Knowledge',
-              subcategory: userData?.subCategory || (isMentorUser ? 'Mentor / Trainer' : isStudentUser ? 'Student' : 'Startup Founder'),
+              email: userData?.email || 'member@fic.org',
+              category: userData?.category || '',
+              subcategory: userData?.subCategory || '',
               role,
               dob: userData?.dob,
               streetAddress: userData?.streetAddress,

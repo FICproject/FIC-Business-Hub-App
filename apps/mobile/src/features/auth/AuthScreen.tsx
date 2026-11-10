@@ -125,8 +125,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           id: `usr_${Date.now()}`,
           fullName: derivedName,
           email: email.trim() || 'member@fic.org',
-          category: 'Business & Entrepreneurship',
-          subcategory: 'Business Member',
           role: 'MSME',
         });
       }

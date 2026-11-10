@@ -30,6 +30,7 @@ interface RegistrationScreenProps {
   onBackToLogin: () => void;
   onRegistrationComplete: (userData?: {
     fullName: string;
+    email?: string;
     category: string;
     subCategory: string;
     role: string;
@@ -4187,6 +4188,7 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
                 const effectiveDistrict = district === 'Other District' ? customDistrict.trim() : district.trim();
                 onRegistrationComplete({
                   fullName: fullName || 'Rahul Sharma',
+                  email: email.trim(),
                   category: assignedCategory,
                   subCategory: selectedSubCategory || (isMentorCat ? 'Mentor / Trainer' : isStudentCat ? 'Student' : 'Software Developer'),
                   role: isMentorCat ? 'MENTOR' : isStudentCat ? 'STUDENT' : isProfessional ? 'MENTOR' : 'MSME',

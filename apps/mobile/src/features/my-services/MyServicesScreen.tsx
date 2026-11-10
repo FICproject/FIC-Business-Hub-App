@@ -41,8 +41,46 @@ interface ProviderService {
   tat: string;
   fee?: string;
   inquiriesCount: number;
-  status: 'ACTIVE' | 'UNDER_REVIEW' | 'PAUSED';
+  status: 'ACTIVE' | 'UNDER_REVIEW' | 'PAUSED' | 'DRAFT';
+  subcategory?: string;
+  shortSummary?: string;
+  fullDescription?: string;
+  keyServices?: string;
+  coreSkills?: string;
+  marketplaceTags?: string;
+  coverageArea?: string;
+  deliveryMode?: string;
+  portfolioUrl?: string;
+  certificationRef?: string;
+  governanceAgreed?: boolean;
 }
+
+const SECTOR_OPTIONS = [
+  'Manufacturing',
+  'Technology',
+  'Business & Entrepreneurship',
+  'Professional Services',
+  'Agriculture',
+  'Investment & Finance',
+  'Education',
+  'Healthcare',
+  'Creative Media',
+  'Employment & Community',
+];
+
+const COVERAGE_AREA_OPTIONS = [
+  'All India (Pan-India)',
+  'Regional / State-Level',
+  'Local / District Only',
+  'International / Export',
+];
+
+const DELIVERY_MODE_OPTIONS = [
+  'Hybrid (On-Site & Remote)',
+  'On-Site / Physical Facility',
+  '100% Virtual / Remote',
+  'Direct Shipment / Courier',
+];
 
 interface CourseItem {
   id: string;
@@ -111,13 +149,160 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [selectedConsultation, setSelectedConsultation] = useState<ConsultationRequest | null>(null);
 
-  // New Service Form
-  const [title, setTitle] = useState('');
-  const [sector, setSector] = useState('Manufacturing');
-  const [serviceType, setServiceType] = useState<'Teaching Service' | 'B2B Capability'>('Teaching Service');
-  const [deliverables, setDeliverables] = useState('');
-  const [tat, setTat] = useState('1-on-1 Virtual');
-  const [fee, setFee] = useState('₹1,500 / Session');
+  // --- Complete Add New Service / Capability Form State (Matching Website) ---
+  const [serviceTitle, setServiceTitle] = useState('');
+  const [primarySector, setPrimarySector] = useState('Manufacturing');
+  const [serviceType, setServiceType] = useState<'Teaching Service' | 'B2B Capability'>('B2B Capability');
+  const [subcategory, setSubcategory] = useState('');
+  const [cardSummary, setCardSummary] = useState('');
+  const [fullDescription, setFullDescription] = useState('');
+
+  // Scope, Deliverables & Delivery
+  const [keyServices, setKeyServices] = useState('');
+  const [coreSkills, setCoreSkills] = useState('');
+  const [marketplaceTags, setMarketplaceTags] = useState('');
+  const [coverageArea, setCoverageArea] = useState('All India (Pan-India)');
+  const [deliveryMode, setDeliveryMode] = useState('Hybrid (On-Site & Remote)');
+
+  // Portfolio & Supporting Proof (Optional)
+  const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [certificationRef, setCertificationRef] = useState('');
+
+  // Governance Protocol Checkbox
+  const [governanceAgreed, setGovernanceAgreed] = useState(false);
+
+  // Dropdown Pickers
+  const [sectorPickerVisible, setSectorPickerVisible] = useState(false);
+  const [coveragePickerVisible, setCoveragePickerVisible] = useState(false);
+  const [deliveryPickerVisible, setDeliveryPickerVisible] = useState(false);
+
+  // Form Validation Errors
+  const [formErrors, setFormErrors] = useState<{
+    serviceTitle?: string;
+    primarySector?: string;
+    fullDescription?: string;
+    governanceAgreed?: string;
+  }>({});
+
+  const resetPublishForm = () => {
+    setServiceTitle('');
+    setPrimarySector('Manufacturing');
+    setSubcategory('');
+    setCardSummary('');
+    setFullDescription('');
+    setKeyServices('');
+    setCoreSkills('');
+    setMarketplaceTags('');
+    setCoverageArea('All India (Pan-India)');
+    setDeliveryMode('Hybrid (On-Site & Remote)');
+    setPortfolioUrl('');
+    setCertificationRef('');
+    setGovernanceAgreed(false);
+    setFormErrors({});
+  };
+
+  const handleCancelPublish = () => {
+    resetPublishForm();
+    setServiceModalVisible(false);
+  };
+
+  const handleSaveDraft = () => {
+    if (!serviceTitle.trim()) {
+      setFormErrors({ serviceTitle: 'Service title is required to save a draft.' });
+      notify.warning('Please enter a Service Title to save this draft.', 'Title Required');
+      return;
+    }
+
+    const draftSrv: ProviderService = {
+      id: `my-srv-${Date.now()}`,
+      title: serviceTitle.trim(),
+      type: serviceType,
+      sector: primarySector,
+      deliverables: keyServices.trim() || cardSummary.trim() || 'Custom Scope Draft',
+      tat: deliveryMode,
+      fee: 'Custom Quotation',
+      inquiriesCount: 0,
+      status: 'DRAFT',
+      subcategory: subcategory.trim(),
+      shortSummary: cardSummary.trim(),
+      fullDescription: fullDescription.trim(),
+      keyServices: keyServices.trim(),
+      coreSkills: coreSkills.trim(),
+      marketplaceTags: marketplaceTags.trim(),
+      coverageArea,
+      deliveryMode,
+      portfolioUrl: portfolioUrl.trim(),
+      certificationRef: certificationRef.trim(),
+      governanceAgreed,
+    };
+
+    setServices((prev) => [draftSrv, ...prev]);
+    resetPublishForm();
+    setServiceModalVisible(false);
+    notify.info('Your service listing has been saved as Draft.', 'Saved as Draft');
+  };
+
+  const handleSubmitForApproval = () => {
+    const errors: {
+      serviceTitle?: string;
+      primarySector?: string;
+      fullDescription?: string;
+      governanceAgreed?: string;
+    } = {};
+
+    if (!serviceTitle.trim()) {
+      errors.serviceTitle = 'Service Title is required *';
+    }
+    if (!primarySector.trim()) {
+      errors.primarySector = 'Primary Sector is required *';
+    }
+    if (!fullDescription.trim()) {
+      errors.fullDescription = 'Full Description & Scope of Capability is required *';
+    }
+    if (!governanceAgreed) {
+      errors.governanceAgreed = 'You must accept the FIC Intermediary Governance Protocol to submit *';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      notify.warning(
+        'Please complete all mandatory fields (*) and accept the governance declaration.',
+        'Validation Error'
+      );
+      return;
+    }
+
+    const newSrv: ProviderService = {
+      id: `my-srv-${Date.now()}`,
+      title: serviceTitle.trim(),
+      type: serviceType,
+      sector: primarySector,
+      deliverables: keyServices.trim() || cardSummary.trim() || fullDescription.trim().slice(0, 120),
+      tat: deliveryMode,
+      fee: 'FIC Escrow / Quote',
+      inquiriesCount: 0,
+      status: 'UNDER_REVIEW',
+      subcategory: subcategory.trim(),
+      shortSummary: cardSummary.trim(),
+      fullDescription: fullDescription.trim(),
+      keyServices: keyServices.trim(),
+      coreSkills: coreSkills.trim(),
+      marketplaceTags: marketplaceTags.trim(),
+      coverageArea,
+      deliveryMode,
+      portfolioUrl: portfolioUrl.trim(),
+      certificationRef: certificationRef.trim(),
+      governanceAgreed: true,
+    };
+
+    setServices((prev) => [newSrv, ...prev]);
+    resetPublishForm();
+    setServiceModalVisible(false);
+    notify.success(
+      'Your service listing has been submitted for FIC Sub-Admin moderation. Once approved, it will be published to the Marketplace.',
+      'Submitted for FIC Approval'
+    );
+  };
 
   // New Course Upload Form
   const [courseTitle, setCourseTitle] = useState('');
@@ -136,36 +321,6 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
   const [courseTitleError, setCourseTitleError] = useState<string | null>(null);
   const [courseCurriculumError, setCourseCurriculumError] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
-
-  // Handlers for Services
-  const handleCreateService = () => {
-    if (!title.trim() || !deliverables.trim()) {
-      notify.warning('Please fill in the title and deliverables/syllabus.', 'Required Fields');
-      return;
-    }
-
-    const newSrv: ProviderService = {
-      id: `my-srv-${Date.now()}`,
-      title,
-      type: serviceType,
-      sector,
-      deliverables,
-      tat,
-      fee,
-      inquiriesCount: 0,
-      status: 'ACTIVE',
-    };
-
-    setServices([newSrv, ...services]);
-    setServiceModalVisible(false);
-    setTitle('');
-    setDeliverables('');
-
-    notify.success(
-      'Your service has been registered and verified for the FIC Platform.',
-      'Service Published'
-    );
-  };
 
   // Video Validation & Attachment Handler (MP4, WebM, MOV <= 250MB)
   const validateAndAttachVideo = (file: {
@@ -798,14 +953,38 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
                           <View style={styles.typeBadge}>
                             <Text style={styles.typeBadgeText}>{service.type}</Text>
                           </View>
-                          <View style={styles.activeBadge}>
-                            <Text style={styles.activeBadgeText}>✓ FIC Approved</Text>
+                          <View
+                            style={[
+                              styles.activeBadge,
+                              service.status === 'UNDER_REVIEW' && styles.statusBadgeUnderReview,
+                              service.status === 'DRAFT' && styles.statusBadgeDraft,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.activeBadgeText,
+                                service.status === 'UNDER_REVIEW' && styles.statusTextUnderReview,
+                                service.status === 'DRAFT' && styles.statusTextDraft,
+                              ]}
+                            >
+                              {service.status === 'UNDER_REVIEW'
+                                ? '⏳ Under Review'
+                                : service.status === 'DRAFT'
+                                ? '📝 Draft'
+                                : '✓ FIC Approved'}
+                            </Text>
                           </View>
                         </View>
                         <Text style={styles.serviceTitle}>{service.title}</Text>
-                        <Text style={styles.sectorText}>Sector: {service.sector}</Text>
+                        <Text style={styles.sectorText}>
+                          Sector: {service.sector}
+                          {service.subcategory ? ` • ${service.subcategory}` : ''}
+                        </Text>
+                        {!!service.shortSummary && (
+                          <Text style={styles.serviceShortSummary}>{service.shortSummary}</Text>
+                        )}
                         <View style={styles.deliverablesBox}>
-                          <Text style={styles.deliverablesLabel}>Key Deliverables:</Text>
+                          <Text style={styles.deliverablesLabel}>Key Deliverables / Scope:</Text>
                           <Text style={styles.deliverablesVal}>{service.deliverables}</Text>
                         </View>
                         <View style={styles.footerRow}>
@@ -882,14 +1061,38 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
                       <View style={styles.typeBadge}>
                         <Text style={styles.typeBadgeText}>{service.type}</Text>
                       </View>
-                      <View style={styles.activeBadge}>
-                        <Text style={styles.activeBadgeText}>✓ FIC Approved</Text>
+                      <View
+                        style={[
+                          styles.activeBadge,
+                          service.status === 'UNDER_REVIEW' && styles.statusBadgeUnderReview,
+                          service.status === 'DRAFT' && styles.statusBadgeDraft,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.activeBadgeText,
+                            service.status === 'UNDER_REVIEW' && styles.statusTextUnderReview,
+                            service.status === 'DRAFT' && styles.statusTextDraft,
+                          ]}
+                        >
+                          {service.status === 'UNDER_REVIEW'
+                            ? '⏳ Under Review'
+                            : service.status === 'DRAFT'
+                            ? '📝 Draft'
+                            : '✓ FIC Approved'}
+                        </Text>
                       </View>
                     </View>
                     <Text style={styles.serviceTitle}>{service.title}</Text>
-                    <Text style={styles.sectorText}>Sector: {service.sector}</Text>
+                    <Text style={styles.sectorText}>
+                      Sector: {service.sector}
+                      {service.subcategory ? ` • ${service.subcategory}` : ''}
+                    </Text>
+                    {!!service.shortSummary && (
+                      <Text style={styles.serviceShortSummary}>{service.shortSummary}</Text>
+                    )}
                     <View style={styles.deliverablesBox}>
-                      <Text style={styles.deliverablesLabel}>Key Deliverables:</Text>
+                      <Text style={styles.deliverablesLabel}>Key Deliverables / Scope:</Text>
                       <Text style={styles.deliverablesVal}>{service.deliverables}</Text>
                     </View>
                     <View style={styles.footerRow}>
@@ -1313,68 +1516,489 @@ export const MyServicesScreen: React.FC<MyServicesScreenProps> = ({
         </View>
       </Modal>
 
-      {/* Publish Service Modal (Generic) */}
+      {/* Complete Add New Service / Capability Modal (Matching Website Architecture) */}
       <Modal
         visible={serviceModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setServiceModalVisible(false)}
+        onRequestClose={handleCancelPublish}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, styles.publishModalContent]}>
+            {/* Top Sheet Handle */}
+            <View style={styles.sheetHandle} />
+
+            {/* Modal Header */}
             <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Publish Service Listing</Text>
-                <Text style={styles.modalSubtitle}>FIC Capability & Teaching Directory</Text>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <View style={styles.capabilityBadgeRow}>
+                  <View style={styles.capabilityPill}>
+                    <Text style={styles.capabilityPillText}>
+                      {serviceType === 'Teaching Service' ? 'MENTOR TEACHING' : 'MEMBER CAPABILITY'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.modalTitle}>Add New Service / Capability</Text>
+                <Text style={styles.modalSubtitle}>
+                  FIC Member Capability Directory & Marketplace Submission
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.modalCloseBtn}
-                onPress={() => setServiceModalVisible(false)}
+                onPress={handleCancelPublish}
+                activeOpacity={0.7}
               >
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>Title *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., 1-on-1 Precision Tooling Clinic"
-                placeholderTextColor="#94A3B8"
-                value={title}
-                onChangeText={setTitle}
-              />
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 30 }}
+            >
+              {/* SECTION 1: BASIC INFORMATION */}
+              <View style={styles.formSectionBox}>
+                <View style={styles.formSectionHeaderRow}>
+                  <View style={styles.sectionNumberBadge}>
+                    <Text style={styles.sectionNumberText}>1</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.formSectionTitle}>Basic Information</Text>
+                    <Text style={styles.formSectionSubtitle}>Core identification and categorization</Text>
+                  </View>
+                </View>
 
-              <Text style={styles.inputLabel}>Sector / Field</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., Manufacturing, IoT, Finance"
-                placeholderTextColor="#94A3B8"
-                value={sector}
-                onChangeText={setSector}
-              />
+                {/* Service Title * */}
+                <Text style={styles.inputLabel}>
+                  Service Title <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <TextInput
+                  style={[styles.textInput, !!formErrors.serviceTitle && styles.textInputError]}
+                  placeholder="e.g., Precision CNC Machining & High-Tolerance Turning"
+                  placeholderTextColor="#94A3B8"
+                  value={serviceTitle}
+                  onChangeText={(val) => {
+                    setServiceTitle(val);
+                    if (formErrors.serviceTitle) {
+                      setFormErrors((prev) => ({ ...prev, serviceTitle: undefined }));
+                    }
+                  }}
+                />
+                {!!formErrors.serviceTitle && (
+                  <Text style={styles.errorText}>⚠ {formErrors.serviceTitle}</Text>
+                )}
 
-              <Text style={styles.inputLabel}>Deliverables / Description *</Text>
-              <TextInput
-                style={[styles.textInput, { height: 75, textAlignVertical: 'top' }]}
-                placeholder="Describe deliverables, session format, prerequisites..."
-                placeholderTextColor="#94A3B8"
-                multiline
-                numberOfLines={3}
-                value={deliverables}
-                onChangeText={setDeliverables}
-              />
+                {/* Primary Sector * Dropdown */}
+                <Text style={styles.inputLabel}>
+                  Primary Sector <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={[styles.dropdownSelector, !!formErrors.primarySector && styles.textInputError]}
+                  activeOpacity={0.75}
+                  onPress={() => setSectorPickerVisible(true)}
+                >
+                  <Text style={styles.dropdownSelectorText}>{primarySector}</Text>
+                  <Text style={styles.dropdownArrow}>▼</Text>
+                </TouchableOpacity>
+                {!!formErrors.primarySector && (
+                  <Text style={styles.errorText}>⚠ {formErrors.primarySector}</Text>
+                )}
 
-              <TouchableOpacity
-                style={styles.submitBtn}
-                activeOpacity={0.88}
-                onPress={handleCreateService}
-              >
-                <Text style={styles.submitBtnText}>Publish Service Listing →</Text>
-              </TouchableOpacity>
+                {/* Subcategory / Specialization */}
+                <Text style={styles.inputLabel}>Subcategory / Specialization</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g., Precision Machining, Tooling, Aerospace Components"
+                  placeholderTextColor="#94A3B8"
+                  value={subcategory}
+                  onChangeText={setSubcategory}
+                />
+
+                {/* Short Card Summary (1–2 sentences) */}
+                <Text style={styles.inputLabel}>Short Card Summary (1–2 sentences)</Text>
+                <Text style={styles.inputHint}>
+                  Brief summary displayed on the marketplace card (Max 160 characters)
+                </Text>
+                <TextInput
+                  style={[styles.textInput, { height: 62, textAlignVertical: 'top' }]}
+                  placeholder="e.g., Tier-1 aerospace and automotive precision CNC turning with ISO certification."
+                  placeholderTextColor="#94A3B8"
+                  multiline
+                  numberOfLines={2}
+                  maxLength={160}
+                  value={cardSummary}
+                  onChangeText={setCardSummary}
+                />
+                <Text style={styles.charCountText}>{cardSummary.length}/160 characters</Text>
+
+                {/* Full Description & Scope of Capability * */}
+                <Text style={styles.inputLabel}>
+                  Full Description & Scope of Capability <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <Text style={styles.inputHint}>
+                  Provide comprehensive technical specifications, equipment, capacity, and scope
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { height: 95, textAlignVertical: 'top' },
+                    !!formErrors.fullDescription && styles.textInputError,
+                  ]}
+                  placeholder="Detailed breakdown of capabilities, facility capacity, machinery, certifications, batch sizes, tolerances, and inspection standards..."
+                  placeholderTextColor="#94A3B8"
+                  multiline
+                  numberOfLines={4}
+                  value={fullDescription}
+                  onChangeText={(val) => {
+                    setFullDescription(val);
+                    if (formErrors.fullDescription) {
+                      setFormErrors((prev) => ({ ...prev, fullDescription: undefined }));
+                    }
+                  }}
+                />
+                {!!formErrors.fullDescription && (
+                  <Text style={styles.errorText}>⚠ {formErrors.fullDescription}</Text>
+                )}
+              </View>
+
+              {/* SECTION 2: SCOPE, DELIVERABLES & DELIVERY */}
+              <View style={styles.formSectionBox}>
+                <View style={styles.formSectionHeaderRow}>
+                  <View style={styles.sectionNumberBadge}>
+                    <Text style={styles.sectionNumberText}>2</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.formSectionTitle}>Scope, Deliverables & Delivery</Text>
+                    <Text style={styles.formSectionSubtitle}>Execution parameters and service coverage</Text>
+                  </View>
+                </View>
+
+                {/* Key Services Offered / Deliverables */}
+                <Text style={styles.inputLabel}>Key Services Offered / Deliverables</Text>
+                <Text style={styles.inputHint}>
+                  List specific deliverables, milestones, or service items
+                </Text>
+                <TextInput
+                  style={[styles.textInput, { height: 75, textAlignVertical: 'top' }]}
+                  placeholder="e.g., CAD/CAM Feasibility Audit, Batch Turning to 5 Micron Tolerance, Material Test Certification"
+                  placeholderTextColor="#94A3B8"
+                  multiline
+                  numberOfLines={3}
+                  value={keyServices}
+                  onChangeText={setKeyServices}
+                />
+
+                {/* Core Skills & Competencies */}
+                <Text style={styles.inputLabel}>Core Skills & Competencies</Text>
+                <Text style={styles.inputHint}>
+                  Technical proficiencies, machinery, frameworks, tools
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g., 5-Axis CNC, Mastercam, ISO 9001, GD&T, CMM Inspection"
+                  placeholderTextColor="#94A3B8"
+                  value={coreSkills}
+                  onChangeText={setCoreSkills}
+                />
+
+                {/* Marketplace Tags */}
+                <Text style={styles.inputLabel}>Marketplace Tags</Text>
+                <Text style={styles.inputHint}>
+                  Comma-separated search keywords for discoverability
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g., CNC, Machining, Aerospace, Tooling, Rapid Prototyping"
+                  placeholderTextColor="#94A3B8"
+                  value={marketplaceTags}
+                  onChangeText={setMarketplaceTags}
+                />
+
+                {/* Coverage Area Dropdown */}
+                <Text style={styles.inputLabel}>Coverage Area</Text>
+                <TouchableOpacity
+                  style={styles.dropdownSelector}
+                  activeOpacity={0.75}
+                  onPress={() => setCoveragePickerVisible(true)}
+                >
+                  <Text style={styles.dropdownSelectorText}>{coverageArea}</Text>
+                  <Text style={styles.dropdownArrow}>▼</Text>
+                </TouchableOpacity>
+
+                {/* Delivery Mode Dropdown */}
+                <Text style={styles.inputLabel}>Delivery Mode</Text>
+                <TouchableOpacity
+                  style={styles.dropdownSelector}
+                  activeOpacity={0.75}
+                  onPress={() => setDeliveryPickerVisible(true)}
+                >
+                  <Text style={styles.dropdownSelectorText}>{deliveryMode}</Text>
+                  <Text style={styles.dropdownArrow}>▼</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* SECTION 3: PORTFOLIO & SUPPORTING PROOF (OPTIONAL) */}
+              <View style={styles.formSectionBox}>
+                <View style={styles.formSectionHeaderRow}>
+                  <View style={styles.sectionNumberBadge}>
+                    <Text style={styles.sectionNumberText}>3</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.formSectionTitle}>Portfolio & Supporting Proof</Text>
+                    <Text style={styles.formSectionSubtitle}>Optional evidence & credentials</Text>
+                  </View>
+                </View>
+
+                {/* Portfolio / Website Link */}
+                <Text style={styles.inputLabel}>Portfolio / Website Link</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="https://company.com or drive portfolio link"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="url"
+                  autoCapitalize="none"
+                  value={portfolioUrl}
+                  onChangeText={setPortfolioUrl}
+                />
+
+                {/* Certification / Supporting Document Reference */}
+                <Text style={styles.inputLabel}>Certification / Supporting Document Reference</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g., ISO 9001:2015 Cert #49281, AS9100D, Trade License"
+                  placeholderTextColor="#94A3B8"
+                  value={certificationRef}
+                  onChangeText={setCertificationRef}
+                />
+              </View>
+
+              {/* SECTION 4: FIC INTERMEDIARY GOVERNANCE PROTOCOL */}
+              <View style={[styles.formSectionBox, { backgroundColor: '#F0F7FF', borderColor: '#BFDBFE' }]}>
+                <View style={styles.governanceHeaderRow}>
+                  <Text style={styles.governanceShieldIcon}>🛡️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.governanceTitle}>FIC Intermediary Governance Protocol</Text>
+                    <Text style={styles.governanceSubtitle}>Member Privacy & Intermediary Protection</Text>
+                  </View>
+                </View>
+
+                <View style={styles.governanceNoticeBox}>
+                  <View style={styles.govBulletRow}>
+                    <Text style={styles.govBulletDot}>•</Text>
+                    <Text style={styles.govBulletText}>
+                      <Text style={styles.govBold}>Member Privacy Guarantee:</Text> Public marketplace listings never display your private personal name, mobile number, or direct email.
+                    </Text>
+                  </View>
+                  <View style={styles.govBulletRow}>
+                    <Text style={styles.govBulletDot}>•</Text>
+                    <Text style={styles.govBulletText}>
+                      <Text style={styles.govBold}>FIC Sub-Admin Moderation:</Text> All member inquiries, scope discussions, proposals, and contracts are mediated by FIC Sub-Admins.
+                    </Text>
+                  </View>
+                  <View style={styles.govBulletRow}>
+                    <Text style={styles.govBulletDot}>•</Text>
+                    <Text style={styles.govBulletText}>
+                      <Text style={styles.govBold}>No Direct Bypass:</Text> Direct commercial bypass outside the platform is prohibited to guarantee bilateral IP protection and contract escrow.
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Mandatory Declaration Checkbox */}
+                <TouchableOpacity
+                  style={[
+                    styles.declarationRow,
+                    !!formErrors.governanceAgreed && styles.declarationRowError,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setGovernanceAgreed(!governanceAgreed);
+                    if (formErrors.governanceAgreed) {
+                      setFormErrors((prev) => ({ ...prev, governanceAgreed: undefined }));
+                    }
+                  }}
+                >
+                  <View style={[styles.checkboxSquare, governanceAgreed && styles.checkboxSquareActive]}>
+                    {governanceAgreed && <Text style={styles.checkboxCheckmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.declarationText}>
+                    I confirm that all information provided is accurate and agree to the{' '}
+                    <Text style={{ fontWeight: '700', color: '#1E40AF' }}>
+                      FIC Intermediary Governance Protocol
+                    </Text>
+                    , bilateral confidentiality, and FIC Sub-Admin moderation before listing publication.{' '}
+                    <Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                </TouchableOpacity>
+                {!!formErrors.governanceAgreed && (
+                  <Text style={[styles.errorText, { marginTop: 6 }]}>⚠ {formErrors.governanceAgreed}</Text>
+                )}
+              </View>
+
+              {/* SECTION 5: ACTION BUTTONS */}
+              <View style={styles.formActionButtonsCol}>
+                {/* Submit for FIC Approval (Primary) */}
+                <TouchableOpacity
+                  style={styles.submitApprovalBtn}
+                  activeOpacity={0.88}
+                  onPress={handleSubmitForApproval}
+                >
+                  <Text style={styles.submitApprovalBtnText}>Submit for FIC Approval →</Text>
+                </TouchableOpacity>
+
+                {/* Save as Draft & Cancel Row */}
+                <View style={styles.secondaryActionsRow}>
+                  <TouchableOpacity
+                    style={styles.saveDraftBtn}
+                    activeOpacity={0.8}
+                    onPress={handleSaveDraft}
+                  >
+                    <Text style={styles.saveDraftBtnText}>💾 Save as Draft</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    activeOpacity={0.8}
+                    onPress={handleCancelPublish}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* Primary Sector Dropdown Picker Modal */}
+      <Modal
+        visible={sectorPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSectorPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.pickerOverlay}
+          activeOpacity={1}
+          onPress={() => setSectorPickerVisible(false)}
+        >
+          <View style={styles.pickerCard}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Primary Sector</Text>
+              <TouchableOpacity onPress={() => setSectorPickerVisible(false)}>
+                <Text style={styles.pickerCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+              {SECTOR_OPTIONS.map((item) => {
+                const isSelected = primarySector === item;
+                return (
+                  <TouchableOpacity
+                    key={item}
+                    style={[styles.pickerItem, isSelected && styles.pickerItemActive]}
+                    onPress={() => {
+                      setPrimarySector(item);
+                      if (formErrors.primarySector) {
+                        setFormErrors((prev) => ({ ...prev, primarySector: undefined }));
+                      }
+                      setSectorPickerVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
+                      {item}
+                    </Text>
+                    {isSelected && <Text style={styles.pickerItemCheck}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Coverage Area Dropdown Picker Modal */}
+      <Modal
+        visible={coveragePickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCoveragePickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.pickerOverlay}
+          activeOpacity={1}
+          onPress={() => setCoveragePickerVisible(false)}
+        >
+          <View style={styles.pickerCard}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Coverage Area</Text>
+              <TouchableOpacity onPress={() => setCoveragePickerVisible(false)}>
+                <Text style={styles.pickerCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
+              {COVERAGE_AREA_OPTIONS.map((item) => {
+                const isSelected = coverageArea === item;
+                return (
+                  <TouchableOpacity
+                    key={item}
+                    style={[styles.pickerItem, isSelected && styles.pickerItemActive]}
+                    onPress={() => {
+                      setCoverageArea(item);
+                      setCoveragePickerVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
+                      {item}
+                    </Text>
+                    {isSelected && <Text style={styles.pickerItemCheck}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Delivery Mode Dropdown Picker Modal */}
+      <Modal
+        visible={deliveryPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeliveryPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.pickerOverlay}
+          activeOpacity={1}
+          onPress={() => setDeliveryPickerVisible(false)}
+        >
+          <View style={styles.pickerCard}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Delivery Mode</Text>
+              <TouchableOpacity onPress={() => setDeliveryPickerVisible(false)}>
+                <Text style={styles.pickerCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
+              {DELIVERY_MODE_OPTIONS.map((item) => {
+                const isSelected = deliveryMode === item;
+                return (
+                  <TouchableOpacity
+                    key={item}
+                    style={[styles.pickerItem, isSelected && styles.pickerItemActive]}
+                    onPress={() => {
+                      setDeliveryMode(item);
+                      setDeliveryPickerVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
+                      {item}
+                    </Text>
+                    {isSelected && <Text style={styles.pickerItemCheck}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
@@ -2186,5 +2810,366 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     fontFamily: fontSansSerif,
+  },
+  // --- New Add Service / Capability Form Styles ---
+  publishModalContent: {
+    maxHeight: '92%',
+    paddingBottom: 8,
+  },
+  capabilityBadgeRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  capabilityPill: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  capabilityPillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#1E40AF',
+    letterSpacing: 0.5,
+  },
+  formSectionBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    marginBottom: 14,
+  },
+  formSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  sectionNumberBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  sectionNumberText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  formSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontFamily: fontSansSerif,
+  },
+  formSectionSubtitle: {
+    fontSize: 10.5,
+    color: '#64748B',
+    marginTop: 1,
+    fontFamily: fontSansSerif,
+  },
+  requiredAsterisk: {
+    color: '#DC2626',
+    fontWeight: '800',
+  },
+  inputHint: {
+    fontSize: 10.5,
+    color: '#64748B',
+    marginBottom: 6,
+    fontFamily: fontSansSerif,
+  },
+  charCountText: {
+    fontSize: 10,
+    color: '#94A3B8',
+    textAlign: 'right',
+    marginTop: 3,
+    marginBottom: 6,
+    fontFamily: fontSansSerif,
+  },
+  errorText: {
+    fontSize: 10.5,
+    color: '#DC2626',
+    fontWeight: '600',
+    marginTop: 4,
+    marginBottom: 2,
+    fontFamily: fontSansSerif,
+  },
+  dropdownSelector: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  dropdownSelectorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E293B',
+    fontFamily: fontSansSerif,
+  },
+  dropdownArrow: {
+    fontSize: 10,
+    color: '#64748B',
+  },
+  governanceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  governanceShieldIcon: {
+    fontSize: 22,
+    marginRight: 8,
+  },
+  governanceTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#1E40AF',
+    fontFamily: fontSansSerif,
+  },
+  governanceSubtitle: {
+    fontSize: 10,
+    color: '#3B82F6',
+    fontWeight: '600',
+    fontFamily: fontSansSerif,
+  },
+  governanceNoticeBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    padding: 10,
+    marginBottom: 12,
+  },
+  govBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  govBulletDot: {
+    fontSize: 14,
+    color: '#2563EB',
+    marginRight: 6,
+    lineHeight: 16,
+  },
+  govBulletText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#334155',
+    lineHeight: 15.5,
+    fontFamily: fontSansSerif,
+  },
+  govBold: {
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  declarationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 10,
+  },
+  declarationRowError: {
+    borderColor: '#DC2626',
+    backgroundColor: '#FEF2F2',
+  },
+  checkboxSquare: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#94A3B8',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  checkboxSquareActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  checkboxCheckmark: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 14,
+  },
+  declarationText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#1E293B',
+    lineHeight: 15.5,
+    fontFamily: fontSansSerif,
+  },
+  formActionButtonsCol: {
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  submitApprovalBtn: {
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  submitApprovalBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: fontSansSerif,
+  },
+  secondaryActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  saveDraftBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveDraftBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+    fontFamily: fontSansSerif,
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    fontFamily: fontSansSerif,
+  },
+  // --- Dropdown Picker Modal Styles ---
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  pickerCard: {
+    width: '100%',
+    maxHeight: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 10,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  pickerTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontFamily: fontSansSerif,
+  },
+  pickerCloseText: {
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: '700',
+    paddingHorizontal: 6,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+    backgroundColor: '#F8FAFC',
+  },
+  pickerItemActive: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  pickerItemText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+    fontFamily: fontSansSerif,
+  },
+  pickerItemTextActive: {
+    color: '#2563EB',
+    fontWeight: '800',
+  },
+  pickerItemCheck: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  // --- Service Card Enhancements ---
+  statusBadgeUnderReview: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+  },
+  statusTextUnderReview: {
+    color: '#B45309',
+  },
+  statusBadgeDraft: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+  },
+  statusTextDraft: {
+    color: '#475569',
+  },
+  serviceShortSummary: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+    marginBottom: 4,
+    fontFamily: fontSansSerif,
+    lineHeight: 15,
   },
 });

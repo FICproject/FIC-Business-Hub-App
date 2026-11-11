@@ -158,6 +158,35 @@ const LogoutVectorIcon: React.FC<{ color?: string }> = ({ color = '#DC2626' }) =
   </View>
 );
 
+// Profile Vector Icon (User Head & Torso)
+const ProfileVectorIcon: React.FC<{ color?: string }> = ({ color = '#2563EB' }) => (
+  <View style={{ width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }}>
+    {/* Head */}
+    <View
+      style={{
+        width: 7.5,
+        height: 7.5,
+        borderRadius: 3.75,
+        borderWidth: 1.6,
+        borderColor: color,
+        marginBottom: 1.5,
+      }}
+    />
+    {/* Shoulders / Torso */}
+    <View
+      style={{
+        width: 14,
+        height: 5.5,
+        borderTopLeftRadius: 6,
+        borderTopRightRadius: 6,
+        borderWidth: 1.6,
+        borderColor: color,
+        borderBottomWidth: 0,
+      }}
+    />
+  </View>
+);
+
 // High-fidelity vector icons matching the reference image pixel by pixel
 const FunctionIcon: React.FC<{ type: FunctionItem['iconType']; color: string }> = ({
   type,
@@ -493,6 +522,7 @@ export const FunctionsMenuModal: React.FC<FunctionsMenuModalProps> = ({
     if ((activeLower === 'requests' || activeLower === 'my requests') && idLower === 'my requests') return true;
     if ((activeLower === 'connections' || activeLower === 'meetings' || activeLower === 'sessions') && idLower === 'meetings') return true;
     if ((activeLower === 'my services' || activeLower === 'skill development' || activeLower === 'courses') && (idLower === 'my services' || idLower === 'skill development')) return true;
+    if (activeLower === 'profile' && (idLower === 'profile' || nameLower === 'profile')) return true;
     return false;
   };
 
@@ -589,8 +619,37 @@ export const FunctionsMenuModal: React.FC<FunctionsMenuModalProps> = ({
               </View>
             </View>
 
-            {/* Bottom Section: Divider + Logout Button (Always visible on single screen) */}
+            {/* Bottom Section: Profile Button + Divider + Logout Button */}
             <View style={styles.bottomSection}>
+              {/* Profile Button positioned in the space directly above Logout */}
+              <TouchableOpacity
+                style={[
+                  styles.functionCard,
+                  isItemActive('Profile', 'Profile')
+                    ? styles.functionCardActive
+                    : styles.functionCardInactive,
+                  { marginBottom: 8 },
+                ]}
+                activeOpacity={0.75}
+                onPress={() => handleSelect('Profile')}
+                accessibilityLabel="Navigate to Profile"
+              >
+                <View style={styles.cardLeftGroup}>
+                  <View style={[styles.iconContainer, { backgroundColor: '#EFF6FF' }]}>
+                    <ProfileVectorIcon color="#2563EB" />
+                  </View>
+                  <View style={styles.cardTextGroup}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      Profile
+                    </Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>
+                      Account & Membership
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRightIcon color={isItemActive('Profile', 'Profile') ? '#2563EB' : '#94A3B8'} />
+              </TouchableOpacity>
+
               <View style={styles.logoutDivider} />
               <TouchableOpacity
                 style={styles.logoutButton}

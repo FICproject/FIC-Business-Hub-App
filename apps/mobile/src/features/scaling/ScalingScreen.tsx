@@ -27,17 +27,32 @@ export const ScalingScreen: React.FC<ScalingScreenProps> = ({
   onNavigateToModule,
 }) => {
   const { user } = useAuth();
-  const { addChamberRequest } = useStudentMentor();
-  const [hasDiagnostic, setHasDiagnostic] = useState(false);
-  const [enterpriseName, setEnterpriseName] = useState(user?.companyName || user?.fullName || 'My Enterprise');
-  const [currentTurnover, setCurrentTurnover] = useState('');
-  const [bottleneck, setBottleneck] = useState('');
+  const { chamberRequests, addChamberRequest } = useStudentMentor();
+
+  // Find member's existing scaling requests
+  const memberScalingRequests = chamberRequests.filter(
+    (req) =>
+      req.details?.module === 'Scaling' ||
+      req.details?.type === 'SCALING' ||
+      req.serviceTitle?.toLowerCase().includes('enterprise diagnostic') ||
+      req.serviceTitle?.toLowerCase().includes('scaling')
+  );
+  const latestScalingReq = memberScalingRequests[0];
+
+  const [hasDiagnostic, setHasDiagnostic] = useState(!!latestScalingReq);
+  const [enterpriseName, setEnterpriseName] = useState(
+    latestScalingReq
+      ? latestScalingReq.serviceTitle.replace(/^Enterprise Diagnostic:\s*/i, '').trim() || user?.companyName || user?.fullName || 'My Enterprise'
+      : user?.companyName || user?.fullName || 'My Enterprise'
+  );
+  const [currentTurnover, setCurrentTurnover] = useState(latestScalingReq?.details?.turnover || '');
+  const [bottleneck, setBottleneck] = useState(latestScalingReq?.notes || '');
   const [modalVisible, setModalVisible] = useState(false);
 
   // Form states
   const [newEnterprise, setNewEnterprise] = useState(user?.companyName || user?.fullName || '');
   const [newSector, setNewSector] = useState('Manufacturing');
-  const [growthArea, setGrowthArea] = useState('Export Capacity & Modernization');
+  const [growthArea, setGrowthArea] = useState(latestScalingReq?.details?.growthArea || 'Export Capacity & Modernization');
   const [targetObjectives, setTargetObjectives] = useState('');
   const [newBottleneck, setNewBottleneck] = useState('');
   const [newTurnover, setNewTurnover] = useState('');
@@ -61,6 +76,8 @@ export const ScalingScreen: React.FC<ScalingScreenProps> = ({
       sector: newSector,
       notes: newBottleneck,
       details: {
+        type: 'SCALING',
+        module: 'Scaling',
         growthArea,
         targetObjectives,
         turnover: newTurnover,

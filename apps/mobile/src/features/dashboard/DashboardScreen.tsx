@@ -172,6 +172,78 @@ const HandshakeVectorIcon = ({ color }: { color: string }) => (
   </View>
 );
 
+// Business Growth / Scaling Vector Icon (KPI 4: Scaling Requests)
+const ScalingVectorIcon = ({ color }: { color: string }) => (
+  <View style={{ width: 22, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+    {/* Upward Rocket Body */}
+    <View
+      style={{
+        width: 11,
+        height: 14,
+        borderTopLeftRadius: 5.5,
+        borderTopRightRadius: 5.5,
+        borderBottomLeftRadius: 2,
+        borderBottomRightRadius: 2,
+        backgroundColor: color,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* Inner window */}
+      <View
+        style={{
+          width: 4,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: '#FFFFFF',
+          opacity: 0.95,
+          marginTop: -2,
+        }}
+      />
+    </View>
+    {/* Side Fins for Enterprise Scaling */}
+    <View
+      style={{
+        position: 'absolute',
+        bottom: 3.5,
+        flexDirection: 'row',
+        width: 19,
+        justifyContent: 'space-between',
+      }}
+    >
+      <View
+        style={{
+          width: 3.5,
+          height: 6,
+          backgroundColor: color,
+          borderTopLeftRadius: 3,
+          borderBottomLeftRadius: 1.5,
+        }}
+      />
+      <View
+        style={{
+          width: 3.5,
+          height: 6,
+          backgroundColor: color,
+          borderTopRightRadius: 3,
+          borderBottomRightRadius: 1.5,
+        }}
+      />
+    </View>
+    {/* Exhaust Propulsion Flame */}
+    <View
+      style={{
+        width: 4,
+        height: 3.5,
+        borderBottomLeftRadius: 2,
+        borderBottomRightRadius: 2,
+        backgroundColor: '#EA580C',
+        marginTop: 0.5,
+      }}
+    />
+  </View>
+);
+
 // Quick Action 1: Plus in Square
 const PlusSquareVectorIcon = ({ color }: { color: string }) => (
   <View
@@ -1046,6 +1118,20 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const dynamicUpcomingSessions = mentorRequests.filter((r) => r.status === 'ACCEPTED').length;
   const dynamicPublishedCourses = courses.filter((c) => c.mentorId === user?.id).length;
 
+  // Dynamically derive Scaling Requests count submitted by the logged-in member
+  const dynamicScalingRequests = chamberRequests.filter((req) => {
+    const title = (req.serviceTitle || '').toLowerCase();
+    const type = (req.details?.type || '').toLowerCase();
+    const module = (req.details?.module || '').toLowerCase();
+    return (
+      type === 'scaling' ||
+      module === 'scaling' ||
+      title.includes('enterprise diagnostic') ||
+      title.includes('scaling') ||
+      title.includes('operational audit')
+    );
+  }).length;
+
   const mentorMetrics = [
     {
       id: 'students',
@@ -1552,17 +1638,17 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <Text style={styles.kpiLabel}>Investment Interest</Text>
               </TouchableOpacity>
 
-              {/* Card 4: Successful Referrals */}
+              {/* Card 4: Scaling Requests */}
               <TouchableOpacity
                 style={styles.kpiCard}
                 activeOpacity={0.8}
                 onPress={() => onNavigateToModule('Scaling')}
               >
                 <View style={[styles.kpiIconBox, { backgroundColor: '#FFF7ED' }]}>
-                  <HandshakeVectorIcon color="#F97316" />
+                  <ScalingVectorIcon color="#F97316" />
                 </View>
-                <Text style={styles.kpiValue}>{referralStats?.successful || 0}</Text>
-                <Text style={styles.kpiLabel}>Successful Referrals</Text>
+                <Text style={styles.kpiValue}>{dynamicScalingRequests}</Text>
+                <Text style={styles.kpiLabel}>Scaling Requests</Text>
               </TouchableOpacity>
             </View>
 

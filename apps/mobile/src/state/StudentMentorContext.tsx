@@ -233,6 +233,39 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
   const [chamberRequests, setChamberRequests] = useState<ChamberServiceRequest[]>(INITIAL_CHAMBER_REQUESTS);
 
   const storageKey = `FIC_INAPP_NOTIFICATIONS_${user?.id || 'guest'}`;
+  const chamberStorageKey = `FIC_CHAMBER_REQUESTS_${user?.id || 'guest'}`;
+
+  // Load stored chamber requests for active user
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const raw = await storageService.getItem(chamberStorageKey);
+        if (raw && isMounted) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setChamberRequests(parsed);
+          }
+        }
+      } catch (err) {
+        console.warn('[StudentMentorContext] Error loading chamber requests:', err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [chamberStorageKey]);
+
+  const persistChamberRequests = useCallback(
+    async (newList: ChamberServiceRequest[]) => {
+      try {
+        await storageService.setItem(chamberStorageKey, JSON.stringify(newList));
+      } catch (err) {
+        console.warn('[StudentMentorContext] Error persisting chamber requests:', err);
+      }
+    },
+    [chamberStorageKey]
+  );
 
   // Load stored notifications for active user
   useEffect(() => {
@@ -329,7 +362,11 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
         details: params.details,
       };
 
-      setChamberRequests((prev) => [newReq, ...prev]);
+      setChamberRequests((prev) => {
+        const updated = [newReq, ...prev];
+        persistChamberRequests(updated);
+        return updated;
+      });
       addNotification(
         user?.id || 'all',
         'Chamber Service Request Lodged',

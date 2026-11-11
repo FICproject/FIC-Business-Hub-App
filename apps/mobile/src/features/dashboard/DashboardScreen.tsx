@@ -1027,12 +1027,12 @@ const MENTOR_STUDENT_NETWORK_METRICS = [
   },
 ];
 
-// Modern three-dot More Options Icon matching reference image
-const ThreeDotsVectorIcon = ({ color = '#2563EB' }: { color?: string }) => (
-  <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
-    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
-    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color, marginVertical: 2.2 }} />
-    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
+// Hamburger Menu Icon (☰) consisting of three horizontal lines
+const HamburgerVectorIcon = ({ color = '#2563EB' }: { color?: string }) => (
+  <View style={{ width: 18, height: 14, justifyContent: 'space-between', alignItems: 'center' }}>
+    <View style={{ width: 16, height: 2, backgroundColor: color, borderRadius: 1 }} />
+    <View style={{ width: 16, height: 2, backgroundColor: color, borderRadius: 1 }} />
+    <View style={{ width: 16, height: 2, backgroundColor: color, borderRadius: 1 }} />
   </View>
 );
 
@@ -1244,7 +1244,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               onPress={() => setFunctionsMenuVisible(true)}
               accessibilityLabel="Platform Functions Menu"
             >
-              <ThreeDotsVectorIcon color="#2563EB" />
+              <HamburgerVectorIcon color="#2563EB" />
             </TouchableOpacity>
 
             <View style={styles.brandRow}>

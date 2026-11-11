@@ -1073,10 +1073,6 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
       setCategoryDocNumber(studentIdNumber);
     }
 
-    if (!description.trim() || description.trim().length < 10) {
-      errors.description = 'Please provide a brief description (at least 10 characters)';
-    }
-
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -3359,50 +3355,8 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
                   ) : null}
                 </View>
 
-                {/* 4. Short Description */}
-                <View style={styles.fieldBlock}>
-                  <Text style={styles.fieldLabel}>
-                    Short Description <Text style={styles.requiredStar}>* (Min 10 characters)</Text>
-                  </Text>
-                  <View style={[styles.textareaPill, fieldErrors.description ? styles.inputPillError : null]}>
-                    <View style={[styles.iconBox, { marginTop: 4 }]}>
-                      <Text style={styles.iconEmoji}>📝</Text>
-                    </View>
-                    <TextInput
-                      style={styles.textareaInput}
-                      placeholder={
-                        isEducation
-                          ? 'Briefly describe your career goals or research interests (min 10 chars)'
-                          : isInvestment
-                          ? 'Briefly describe your investment focus and target stage (min 10 chars)'
-                          : 'Briefly describe your business or work (min 10 chars, max 200)'
-                      }
-                      placeholderTextColor="#A3968C"
-                      multiline
-                      maxLength={200}
-                      value={description}
-                      onChangeText={(t) => {
-                        setDescription(t);
-                        if (!t.trim()) {
-                          updateFieldError('description', 'Description is required');
-                        } else if (t.trim().length < 10) {
-                          updateFieldError('description', 'Description must be at least 10 characters');
-                        } else {
-                          updateFieldError('description', null);
-                        }
-                      }}
-                    />
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {fieldErrors.description ? (
-                      <Text style={styles.fieldErrorText}>⚠️ {fieldErrors.description}</Text>
-                    ) : <View />}
-                    <Text style={styles.charCounter}>{description.length} / 200</Text>
-                  </View>
-                </View>
-
                 {/* Action Buttons Row */}
-                <View style={styles.dualButtonsRow}>
+                <View style={[styles.dualButtonsRow, { marginTop: 14 }]}>
                   <TouchableOpacity
                     style={styles.secondaryButton}
                     activeOpacity={0.88}

@@ -15,6 +15,8 @@ import { FacilitatedMeeting } from '../../types';
 import { notify } from '../../components/common/NotificationContext';
 import { launchAssignedMeeting, MeetingPlatform } from '../../utils/meetingLauncher';
 import { storageService } from '../../services/storageService';
+import { useAuth } from '../../state/AuthContext';
+import { StudentMentorshipScreen } from './StudentMentorshipScreen';
 
 const fontSansSerif = Platform.OS === 'android' ? 'sans-serif' : 'System';
 
@@ -35,6 +37,7 @@ export interface ExtendedMeeting extends FacilitatedMeeting {
 interface MeetingsScreenProps {
   onBack?: () => void;
   onNavigateToModule?: (moduleName: string) => void;
+  initialAction?: string;
 }
 
 export const CONSULTATION_CATEGORIES = [
@@ -127,7 +130,37 @@ const getTomorrowDate = (): string => {
 export const MeetingsScreen: React.FC<MeetingsScreenProps> = ({
   onBack,
   onNavigateToModule,
+  initialAction,
 }) => {
+  const { user } = useAuth();
+  const subLower = (user?.subcategory || (user as any)?.subCategory || '').toLowerCase();
+  const userCategory = user?.category || '';
+  const isMentor =
+    user?.role === 'MENTOR' ||
+    subLower === 'mentor' ||
+    subLower === 'mentor / trainer' ||
+    subLower === 'mentor/trainer' ||
+    subLower === 'trainer' ||
+    subLower === 'teacher' ||
+    subLower === 'professor' ||
+    subLower === 'teacher / professor' ||
+    subLower === 'teacher/professor';
+  const isStudent =
+    !isMentor &&
+    (user?.role === 'STUDENT' ||
+      subLower === 'student' ||
+      (userCategory === 'Education & Knowledge' && subLower === 'student'));
+
+  if (isStudent) {
+    return (
+      <StudentMentorshipScreen
+        onBack={onBack}
+        onNavigateToModule={onNavigateToModule}
+        initialAction={initialAction}
+      />
+    );
+  }
+
   const [meetings, setMeetings] = useState<ExtendedMeeting[]>(INITIAL_MEETINGS);
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'UPCOMING' | 'CONCLUDED'>('ALL');
   const [selectedMeeting, setSelectedMeeting] = useState<ExtendedMeeting | null>(null);

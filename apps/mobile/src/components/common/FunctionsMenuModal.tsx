@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,7 +36,8 @@ export interface FunctionItem {
     | 'investment'
     | 'meetings'
     | 'requests'
-    | 'services';
+    | 'services'
+    | 'skills';
 }
 
 export const FUNCTIONS_LIST: FunctionItem[] = [
@@ -270,6 +271,31 @@ const FunctionIcon: React.FC<{ type: FunctionItem['iconType']; color: string }> 
           <View style={{ width: 3.8, height: 15, backgroundColor: color, borderRadius: 1.2 }} />
         </View>
       );
+    case 'skills':
+      return (
+        <View style={{ width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }}>
+          {/* Graduation Cap Diamond / Mortarboard Top */}
+          <View
+            style={{
+              width: 14,
+              height: 7,
+              backgroundColor: color,
+              borderRadius: 1.5,
+              marginBottom: 1.5,
+            }}
+          />
+          {/* Cap Base Arch */}
+          <View
+            style={{
+              width: 8,
+              height: 4,
+              borderBottomLeftRadius: 4,
+              borderBottomRightRadius: 4,
+              backgroundColor: color,
+            }}
+          />
+        </View>
+      );
     case 'investment':
       return (
         <View
@@ -386,7 +412,8 @@ export const FunctionsMenuModal: React.FC<FunctionsMenuModalProps> = ({
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const subLower = user?.subcategory?.toLowerCase() || '';
+  const subLower = (user?.subcategory || (user as any)?.subCategory || '').toLowerCase();
+  const userCategory = user?.category || '';
   const isMentor =
     user?.role === 'MENTOR' ||
     subLower === 'mentor' ||
@@ -401,9 +428,26 @@ export const FunctionsMenuModal: React.FC<FunctionsMenuModalProps> = ({
     !isMentor &&
     (user?.role === 'STUDENT' ||
       subLower === 'student' ||
-      (user?.category === 'Education & Knowledge' && subLower === 'student'));
+      (userCategory === 'Education & Knowledge' && subLower === 'student'));
 
-  const functionsList: FunctionItem[] = FUNCTIONS_LIST;
+  const functionsList: FunctionItem[] = useMemo(() => {
+    if (isStudent) {
+      return FUNCTIONS_LIST.map((item) => {
+        if (item.id === 'Scaling') {
+          return {
+            id: 'Skill Development',
+            name: 'Skill Development',
+            subtitle: 'Courses & Masterclasses',
+            bgColor: '#F5F3FF',
+            iconColor: '#7C3AED',
+            iconType: 'skills' as const,
+          };
+        }
+        return item;
+      });
+    }
+    return FUNCTIONS_LIST;
+  }, [isStudent]);
 
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;

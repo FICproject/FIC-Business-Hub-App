@@ -216,9 +216,97 @@ export const VERIFIED_MENTORS: VerifiedMentor[] = [
   },
 ];
 
-const INITIAL_COURSES: SharedMasterclass[] = [];
+const INITIAL_COURSES: SharedMasterclass[] = [
+  {
+    id: 'course-1',
+    mentorId: 'usr_mentor_anand',
+    instructor: 'Dr. Anand Kumar',
+    title: 'Full-Stack Web Development & Modern API Design',
+    domain: 'Technology & Digital',
+    language: 'English',
+    duration: '4h 30m',
+    modulesCount: 6,
+    level: 'Intermediate',
+    syllabus: [
+      'Modern TypeScript & Node.js Architecture',
+      'REST & GraphQL API Best Practices',
+      'Database Modeling & PostgreSQL Optimization',
+      'Cloud Deployment & CI/CD Pipelines',
+      'Authentication, OAuth2 & JWT Security',
+      'Building Production Full-Stack Workflows',
+    ],
+    description: 'Master full-stack web engineering, resilient backend systems, and modern API design with FIC Industry Mentors.',
+    status: 'PUBLISHED',
+    createdAt: '01 Nov 2026',
+  },
+  {
+    id: 'course-2',
+    mentorId: 'usr_mentor_sundaram',
+    instructor: 'Dr. K. S. Sundaram',
+    title: 'Industrial Automation & Industry 4.0 Foundations',
+    domain: 'Manufacturing & Industrial',
+    language: 'Tamil',
+    duration: '3h 45m',
+    modulesCount: 5,
+    level: 'Beginner',
+    syllabus: [
+      'Introduction to Industrial Automation & PLC Architecture',
+      'Sensors, Actuators & Industrial Protocols (Modbus / MQTT)',
+      'SCADA & HMI Interface Design',
+      'Shop-Floor Lean Manufacturing & Predictive Maintenance',
+      'Case Studies: Modernizing Indian MSME Manufacturing Units',
+    ],
+    description: 'Practical grounding in manufacturing automation, shop-floor PLC controls, and smart factory technologies.',
+    status: 'PUBLISHED',
+    createdAt: '28 Oct 2026',
+  },
+  {
+    id: 'course-3',
+    mentorId: 'usr_mentor_anand',
+    instructor: 'Dr. Anand Kumar',
+    title: 'AI Engineering & Machine Learning Workflows',
+    domain: 'Technology & Digital',
+    language: 'English',
+    duration: '5h 15m',
+    modulesCount: 7,
+    level: 'Advanced',
+    syllabus: [
+      'Foundations of Modern Deep Learning & Transformers',
+      'Large Language Models & Prompt Engineering',
+      'Retrieval-Augmented Generation (RAG) Architecture',
+      'Vector Databases & Semantic Embeddings',
+      'Fine-Tuning & Quantization Techniques',
+      'Model Serving, Latency & Cost Optimization',
+      'Ethical AI, Safety & Production Monitoring',
+    ],
+    description: 'Comprehensive deep dive into building production AI applications, RAG pipelines, and agentic workflows.',
+    status: 'PUBLISHED',
+    createdAt: '03 Nov 2026',
+  },
+];
 
-const INITIAL_CONSULTATIONS: ConsultationBooking[] = [];
+const INITIAL_CONSULTATIONS: ConsultationBooking[] = [
+  {
+    id: 'BO-749102',
+    studentId: 'student-demo',
+    studentName: 'Student Member',
+    mentorId: 'usr_mentor_anand',
+    mentorName: 'Dr. Anand Kumar',
+    topic: 'Full-Stack Architecture & Career Guidance',
+    domain: 'Technology & Digital',
+    requestedDate: '24-11-2026',
+    requestedTime: '05:30 PM IST',
+    duration: '45 mins',
+    agenda: 'Guidance on full-stack architecture, portfolio preparation, and placement roadmap.',
+    status: 'ACCEPTED',
+    createdAt: '10 Nov 2026',
+    confirmedDate: '24-11-2026',
+    confirmedTime: '05:30 PM IST',
+    meetingMode: 'Virtual Video Meet',
+    meetingUrl: 'https://meet.google.com/fic-mentor-session',
+    mentorNotes: 'Please prepare your GitHub portfolio link and key project questions prior to the session.',
+  },
+];
 
 export const INITIAL_CHAMBER_REQUESTS: ChamberServiceRequest[] = [];
 
@@ -234,6 +322,39 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const storageKey = `FIC_INAPP_NOTIFICATIONS_${user?.id || 'guest'}`;
   const chamberStorageKey = `FIC_CHAMBER_REQUESTS_${user?.id || 'guest'}`;
+  const consultationStorageKey = `FIC_CONSULTATIONS_${user?.id || 'guest'}`;
+
+  // Load stored consultations for active user
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const raw = await storageService.getItem(consultationStorageKey);
+        if (raw && isMounted) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setConsultations(parsed);
+          }
+        }
+      } catch (err) {
+        console.warn('[StudentMentorContext] Error loading consultations:', err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [consultationStorageKey]);
+
+  const persistConsultations = useCallback(
+    async (newList: ConsultationBooking[]) => {
+      try {
+        await storageService.setItem(consultationStorageKey, JSON.stringify(newList));
+      } catch (err) {
+        console.warn('[StudentMentorContext] Error persisting consultations:', err);
+      }
+    },
+    [consultationStorageKey]
+  );
 
   // Load stored chamber requests for active user
   useEffect(() => {
@@ -413,7 +534,11 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
         createdAt: new Date().toISOString(),
       };
 
-      setConsultations((prev) => [newBooking, ...prev]);
+      setConsultations((prev) => {
+        const updated = [newBooking, ...prev];
+        persistConsultations(updated);
+        return updated;
+      });
 
       // Deliver notification specifically to the selected Mentor
       addNotification(
@@ -453,8 +578,8 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
         mentorNotes?: string;
       }
     ) => {
-      setConsultations((prev) =>
-        prev.map((item) => {
+      setConsultations((prev) => {
+        const updatedList = prev.map((item) => {
           if (item.id !== bookingId) return item;
           const updated: ConsultationBooking = {
             ...item,
@@ -475,8 +600,10 @@ export const StudentMentorProvider: React.FC<{ children: React.ReactNode }> = ({
           );
 
           return updated;
-        })
-      );
+        });
+        persistConsultations(updatedList);
+        return updatedList;
+      });
 
       notify.success(
         'Session accepted and calendar invitation dispatched with chamber meeting link.',

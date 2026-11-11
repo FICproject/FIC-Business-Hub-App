@@ -88,6 +88,7 @@ const MobileAppContent: React.FC = () => {
   const [activeSubModule, setActiveSubModule] = useState<string | null>(null);
   const [navHistory, setNavHistory] = useState<NavState[]>([]);
   const [marketplaceCategory, setMarketplaceCategory] = useState<string>('All');
+  const [meetingsAction, setMeetingsAction] = useState<string | null>(null);
 
   // Exit App Confirmation Dialog (Reusing existing notification & confirm dialog)
   const showExitConfirmation = useCallback(() => {
@@ -242,6 +243,11 @@ const MobileAppContent: React.FC = () => {
           break;
         case 'Meetings':
         case 'Connections':
+          if (params?.action) {
+            setMeetingsAction(params.action);
+          } else {
+            setMeetingsAction(null);
+          }
           navigateTo('Connections', null);
           break;
         case 'Business Ideas':
@@ -478,6 +484,7 @@ const MobileAppContent: React.FC = () => {
         case 'Meetings':
           return (
             <MeetingsScreen
+              initialAction={meetingsAction || undefined}
               onBack={() => setActiveSubModule(null)}
               onNavigateToModule={handleNavigateToModule}
             />
@@ -542,6 +549,7 @@ const MobileAppContent: React.FC = () => {
       case 'Connections':
         return (
           <MeetingsScreen
+            initialAction={meetingsAction || undefined}
             onBack={() => setCurrentTab('Home')}
             onNavigateToModule={handleNavigateToModule}
           />
@@ -564,6 +572,7 @@ const MobileAppContent: React.FC = () => {
       case 'Sessions':
         return (
           <MeetingsScreen
+            initialAction={meetingsAction || undefined}
             onBack={() => setCurrentTab('Home')}
             onNavigateToModule={handleNavigateToModule}
           />

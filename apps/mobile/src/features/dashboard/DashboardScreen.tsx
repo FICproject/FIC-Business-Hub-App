@@ -244,6 +244,119 @@ const ScalingVectorIcon = ({ color }: { color: string }) => (
   </View>
 );
 
+// Student KPI 1: Purple Calendar Vector Icon
+const StudentCalendarVectorIcon = ({ color = '#7C3AED' }: { color?: string }) => (
+  <View style={{ width: 19, height: 18, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{
+        width: 17,
+        height: 15,
+        borderRadius: 4,
+        borderWidth: 1.6,
+        borderColor: color,
+        paddingTop: 2.5,
+        alignItems: 'center',
+      }}
+    >
+      <View style={{ width: 13, height: 1.4, backgroundColor: color, marginBottom: 2 }} />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: 12 }}>
+        <View style={{ width: 2, height: 2, borderRadius: 1, backgroundColor: color }} />
+        <View style={{ width: 2, height: 2, borderRadius: 1, backgroundColor: color }} />
+        <View style={{ width: 2, height: 2, borderRadius: 1, backgroundColor: color }} />
+      </View>
+    </View>
+  </View>
+);
+
+// Student KPI 2: Orange Rocket Vector Icon
+const StudentRocketVectorIcon = ({ color = '#EA580C' }: { color?: string }) => (
+  <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{
+        width: 10,
+        height: 13,
+        backgroundColor: color,
+        borderTopLeftRadius: 5,
+        borderTopRightRadius: 5,
+        borderBottomLeftRadius: 2,
+        borderBottomRightRadius: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <View style={{ width: 3.5, height: 3.5, borderRadius: 1.75, backgroundColor: '#FFFFFF' }} />
+    </View>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 16, marginTop: -2 }}>
+      <View style={{ width: 3, height: 5, backgroundColor: color, borderBottomLeftRadius: 2 }} />
+      <View style={{ width: 4, height: 3, backgroundColor: '#EF4444', borderBottomLeftRadius: 2, borderBottomRightRadius: 2 }} />
+      <View style={{ width: 3, height: 5, backgroundColor: color, borderBottomRightRadius: 2 }} />
+    </View>
+  </View>
+);
+
+// Student KPI 3: Golden Yellow Briefcase Vector Icon
+const StudentBriefcaseVectorIcon = ({ color = '#D97706' }: { color?: string }) => (
+  <View style={{ width: 19, height: 18, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{
+        width: 8,
+        height: 3,
+        borderTopLeftRadius: 2,
+        borderTopRightRadius: 2,
+        borderWidth: 1.4,
+        borderColor: color,
+        borderBottomWidth: 0,
+        marginBottom: 1,
+      }}
+    />
+    <View
+      style={{
+        width: 17,
+        height: 12,
+        borderRadius: 3,
+        borderWidth: 1.6,
+        borderColor: color,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <View style={{ width: 5, height: 1.4, backgroundColor: color, borderRadius: 0.7 }} />
+    </View>
+  </View>
+);
+
+// Student KPI 4: Green Shield Check Vector Icon
+const StudentShieldCheckVectorIcon = ({ color = '#16A34A' }: { color?: string }) => (
+  <View style={{ width: 18, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{
+        width: 16,
+        height: 16,
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8,
+        borderBottomLeftRadius: 8,
+        borderBottomRightRadius: 8,
+        borderWidth: 1.6,
+        borderColor: color,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <View
+        style={{
+          width: 6,
+          height: 3.5,
+          borderLeftWidth: 1.6,
+          borderBottomWidth: 1.6,
+          borderColor: color,
+          transform: [{ rotate: '-45deg' }],
+          marginTop: -2,
+        }}
+      />
+    </View>
+  </View>
+);
+
 // Quick Action 1: Plus in Square
 const PlusSquareVectorIcon = ({ color }: { color: string }) => (
   <View
@@ -1599,57 +1712,139 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
             {/* 4 Metric KPI Cards (2x2 Grid) */}
             <View style={styles.kpiGrid}>
-              {/* Card 1: Business Requests */}
-              <TouchableOpacity
-                style={styles.kpiCard}
-                activeOpacity={0.8}
-                onPress={() => onNavigateToModule('My Requests')}
-              >
-                <View style={[styles.kpiIconBox, { backgroundColor: '#EFF6FF' }]}>
-                  <DocVectorIcon color="#2563EB" />
-                </View>
-                <Text style={styles.kpiValue}>{chamberRequests.length}</Text>
-                <Text style={styles.kpiLabel}>Business Requests</Text>
-              </TouchableOpacity>
+              {isStudent ? (
+                <>
+                  {/* Card 1: Available Mentors */}
+                  <TouchableOpacity
+                    style={styles.studentKpiCard}
+                    activeOpacity={0.8}
+                    onPress={() => onNavigateToModule('Meetings', { action: 'BOOK_MENTOR' })}
+                  >
+                    <View style={styles.studentKpiTopRow}>
+                      <View style={[styles.kpiIconBox, { backgroundColor: '#F5F3FF' }]}>
+                        <StudentCalendarVectorIcon color="#7C3AED" />
+                      </View>
+                      <View style={[styles.studentKpiBadge, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
+                        <Text style={[styles.studentKpiBadgeText, { color: '#7C3AED' }]}>Live Directory</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.kpiValue}>{mentors.length || 16}</Text>
+                    <Text style={styles.studentKpiTitle} numberOfLines={1}>Available Mentors</Text>
+                    <Text style={styles.studentKpiSubtitle} numberOfLines={1}>Accredited Experts Ready</Text>
+                  </TouchableOpacity>
 
-              {/* Card 2: Active Connections */}
-              <TouchableOpacity
-                style={styles.kpiCard}
-                activeOpacity={0.8}
-                onPress={() => onNavigateToModule('Meetings')}
-              >
-                <View style={[styles.kpiIconBox, { backgroundColor: '#ECFDF5' }]}>
-                  <PeopleVectorIcon color="#10B981" />
-                </View>
-                <Text style={styles.kpiValue}>0</Text>
-                <Text style={styles.kpiLabel}>Active Connections</Text>
-              </TouchableOpacity>
+                  {/* Card 2: Learning Videos */}
+                  <TouchableOpacity
+                    style={styles.studentKpiCard}
+                    activeOpacity={0.8}
+                    onPress={() => onNavigateToModule('Skill Development')}
+                  >
+                    <View style={styles.studentKpiTopRow}>
+                      <View style={[styles.kpiIconBox, { backgroundColor: '#FFF7ED' }]}>
+                        <StudentRocketVectorIcon color="#EA580C" />
+                      </View>
+                      <View style={[styles.studentKpiBadge, { backgroundColor: '#FFF7ED', borderColor: '#FFEDD5' }]}>
+                        <Text style={[styles.studentKpiBadgeText, { color: '#EA580C' }]}>Curated Library</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.kpiValue}>{courses.length || 3}</Text>
+                    <Text style={styles.studentKpiTitle} numberOfLines={1}>Learning Videos</Text>
+                    <Text style={styles.studentKpiSubtitle} numberOfLines={1}>Skill Masterclasses</Text>
+                  </TouchableOpacity>
 
-              {/* Card 3: Investment Interest */}
-              <TouchableOpacity
-                style={styles.kpiCard}
-                activeOpacity={0.8}
-                onPress={() => onNavigateToModule('Investment')}
-              >
-                <View style={[styles.kpiIconBox, { backgroundColor: '#F5F3FF' }]}>
-                  <TrendUpVectorIcon color="#8B5CF6" />
-                </View>
-                <Text style={styles.kpiValue}>₹ 0</Text>
-                <Text style={styles.kpiLabel}>Investment Interest</Text>
-              </TouchableOpacity>
+                  {/* Card 3: Internships & Projects */}
+                  <TouchableOpacity
+                    style={styles.studentKpiCard}
+                    activeOpacity={0.8}
+                    onPress={() => onNavigateToModule('Marketplace')}
+                  >
+                    <View style={styles.studentKpiTopRow}>
+                      <View style={[styles.kpiIconBox, { backgroundColor: '#FEF3C7' }]}>
+                        <StudentBriefcaseVectorIcon color="#D97706" />
+                      </View>
+                      <View style={[styles.studentKpiBadge, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                        <Text style={[styles.studentKpiBadgeText, { color: '#B45309' }]}>Opportunities</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.kpiValue}>18 Active</Text>
+                    <Text style={styles.studentKpiTitle} numberOfLines={1}>Internships & Projects</Text>
+                    <Text style={styles.studentKpiSubtitle} numberOfLines={1}>Verified Ecosystem Roles</Text>
+                  </TouchableOpacity>
 
-              {/* Card 4: Scaling Requests */}
-              <TouchableOpacity
-                style={styles.kpiCard}
-                activeOpacity={0.8}
-                onPress={() => onNavigateToModule('Scaling')}
-              >
-                <View style={[styles.kpiIconBox, { backgroundColor: '#FFF7ED' }]}>
-                  <ScalingVectorIcon color="#F97316" />
-                </View>
-                <Text style={styles.kpiValue}>{dynamicScalingRequests}</Text>
-                <Text style={styles.kpiLabel}>Scaling Requests</Text>
-              </TouchableOpacity>
+                  {/* Card 4: My Applications */}
+                  <TouchableOpacity
+                    style={styles.studentKpiCard}
+                    activeOpacity={0.8}
+                    onPress={() => onNavigateToModule('My Requests')}
+                  >
+                    <View style={styles.studentKpiTopRow}>
+                      <View style={[styles.kpiIconBox, { backgroundColor: '#ECFDF5' }]}>
+                        <StudentShieldCheckVectorIcon color="#16A34A" />
+                      </View>
+                      <View style={[styles.studentKpiBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                        <Text style={[styles.studentKpiBadgeText, { color: '#059669' }]}>Live Tracker</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.kpiValue}>{studentBookings.length + chamberRequests.length}</Text>
+                    <Text style={styles.studentKpiTitle} numberOfLines={1}>My Applications</Text>
+                    <Text style={styles.studentKpiSubtitle} numberOfLines={1}>Active FIC Requests</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  {/* Card 1: Business Requests */}
+                  <TouchableOpacity
+                    style={styles.kpiCard}
+                    activeOpacity={0.8}
+                    onPress={() => onNavigateToModule('My Requests')}
+                  >
+                    <View style={[styles.kpiIconBox, { backgroundColor: '#EFF6FF' }]}>
+                      <DocVectorIcon color="#2563EB" />
+                    </View>
+                    <Text style={styles.kpiValue}>{chamberRequests.length}</Text>
+                    <Text style={styles.kpiLabel}>Business Requests</Text>
+                  </TouchableOpacity>
+
+                  {/* Card 2: Active Connections */}
+                  <TouchableOpacity
+                    style={styles.kpiCard}
+                    activeOpacity={0.8}
+                    onPress={() => onNavigateToModule('Meetings')}
+                  >
+                    <View style={[styles.kpiIconBox, { backgroundColor: '#ECFDF5' }]}>
+                      <PeopleVectorIcon color="#10B981" />
+                    </View>
+                    <Text style={styles.kpiValue}>0</Text>
+                    <Text style={styles.kpiLabel}>Active Connections</Text>
+                  </TouchableOpacity>
+
+                  {/* Card 3: Investment Interest */}
+                  <TouchableOpacity
+                    style={styles.kpiCard}
+                    activeOpacity={0.8}
+                    onPress={() => onNavigateToModule('Investment')}
+                  >
+                    <View style={[styles.kpiIconBox, { backgroundColor: '#F5F3FF' }]}>
+                      <TrendUpVectorIcon color="#8B5CF6" />
+                    </View>
+                    <Text style={styles.kpiValue}>₹ 0</Text>
+                    <Text style={styles.kpiLabel}>Investment Interest</Text>
+                  </TouchableOpacity>
+
+                  {/* Card 4: Scaling Requests */}
+                  <TouchableOpacity
+                    style={styles.kpiCard}
+                    activeOpacity={0.8}
+                    onPress={() => onNavigateToModule('Scaling')}
+                  >
+                    <View style={[styles.kpiIconBox, { backgroundColor: '#FFF7ED' }]}>
+                      <ScalingVectorIcon color="#F97316" />
+                    </View>
+                    <Text style={styles.kpiValue}>{dynamicScalingRequests}</Text>
+                    <Text style={styles.kpiLabel}>Scaling Requests</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
             {/* Quick Actions */}
@@ -2572,6 +2767,54 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
+  },
+  studentKpiCard: {
+    width: (width - 32 - 10) / 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+    justifyContent: 'space-between',
+    minHeight: 118,
+  },
+  studentKpiTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  studentKpiBadge: {
+    paddingHorizontal: 5.5,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  studentKpiBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    fontFamily: fontSansSerif,
+  },
+  studentKpiTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: fontSansSerif,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  studentKpiSubtitle: {
+    fontSize: 9.5,
+    fontWeight: '500',
+    color: '#64748B',
+    fontFamily: fontSansSerif,
+    marginTop: 1,
+    lineHeight: 13,
   },
   kpiIconBox: {
     width: 32,

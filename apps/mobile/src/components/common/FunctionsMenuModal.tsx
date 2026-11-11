@@ -444,7 +444,7 @@ export const FunctionsMenuModal: React.FC<FunctionsMenuModalProps> = ({
           };
         }
         return item;
-      });
+      }).filter((item) => item.id !== 'My Services');
     }
     return FUNCTIONS_LIST;
   }, [isStudent]);
@@ -622,7 +622,7 @@ export const FunctionsMenuModal: React.FC<FunctionsMenuModalProps> = ({
 
                 <Text style={styles.headerTitle}>Platform Functions</Text>
                 <Text style={styles.headerSubtitle}>
-                  Select any of the 8 business & advisory modules
+                  {`Select any of the ${functionsList.length} business & advisory modules`}
                 </Text>
               </View>
 
